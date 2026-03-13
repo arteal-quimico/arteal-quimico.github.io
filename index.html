@@ -948,6 +948,93 @@ body.lang-en [data-lang="es"] { display: none; }
 span[data-lang="en"] { display: none; }
 body.lang-en span[data-lang="en"] { display: inline; }
 body.lang-en span[data-lang="es"] { display: none; }
+
+/* ═══ ADMIN RESPONSIVE MÓVIL ═══ */
+@media (max-width: 600px) {
+
+  /* Panel lateral ocupa toda la pantalla */
+  #admin-panel {
+    width: 100vw !important;
+    border-left: none !important;
+  }
+
+  /* Tabs más compactos */
+  #admin-panel [style*="padding:16px 22px 0"] {
+    padding: 12px 14px 0 !important;
+    gap: 6px !important;
+  }
+
+  /* Botones de tab más pequeños */
+  #btn-tab-perfil, #btn-tab-obras, #btn-tab-contacto, #btn-tab-clave {
+    font-size: 8px !important;
+    padding: 7px 10px !important;
+    letter-spacing: 1px !important;
+  }
+
+  /* Cabecera del panel */
+  #admin-panel > div:first-child {
+    padding: 14px 16px !important;
+  }
+
+  /* Tabs content */
+  #tab-perfil, #tab-obras, #tab-contacto, #tab-clave {
+    padding: 14px !important;
+  }
+
+  /* Botones Ver/Salir en cabecera */
+  #admin-panel button[onclick="verPagina()"],
+  #admin-panel button[onclick="cerrarSesion()"] {
+    font-size: 8px !important;
+    padding: 6px 8px !important;
+  }
+
+  /* Login box */
+  #admin-login-overlay > div {
+    padding: 32px 24px !important;
+  }
+
+  /* Botón volver al panel */
+  #btn-volver-panel button {
+    font-size: 9px !important;
+    padding: 10px 14px !important;
+  }
+
+  /* Botones admin en obras (editar/borrar) más grandes para móvil */
+  .obra-admin-btns button {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 18px !important;
+  }
+
+  /* Modal compartir */
+  #share-modal > div {
+    padding: 24px 18px !important;
+  }
+  #share-modal [style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Modal editar/categorías */
+  #modal-editar > div,
+  #modal-categorias > div {
+    max-height: 95vh !important;
+  }
+
+  /* Tarjeta artista */
+  #artist-card-modal > div {
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Navbar en móvil: logo más pequeño */
+  .nav-logo { font-size: 13px !important; }
+
+  /* Galería 1 columna en móvil muy pequeño */
+  .gallery-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -992,8 +1079,25 @@ body.lang-en span[data-lang="es"] { display: none; }
 <div class="mobile-menu" id="mobileMenu">
   <a href="#about" onclick="toggleMenu()"><span data-lang="es">Historia</span><span data-lang="en">Story</span></a>
   <a href="#gallery" onclick="toggleMenu()"><span data-lang="es">Obras</span><span data-lang="en">Works</span></a>
-  <a href="#shop" onclick="toggleMenu()"><span data-lang="es">Tienda</span><span data-lang="en">Shop</span></a>
   <a href="#contact" onclick="toggleMenu()"><span data-lang="es">Contacto</span><span data-lang="en">Contact</span></a>
+  <button onclick="toggleMenu();openShareModal()"
+          style="background:none;border:1px solid rgba(201,168,76,0.4);color:var(--gold);
+                 padding:10px 28px;font-family:'Cinzel',serif;font-size:12px;
+                 letter-spacing:2px;cursor:pointer;border-radius:2px;text-transform:uppercase">
+    <span data-lang="es">Compartir</span><span data-lang="en">Share</span>
+  </button>
+  <!-- ES/EN en menú móvil -->
+  <div style="display:flex;gap:0;border:1px solid rgba(201,168,76,0.3);border-radius:4px;overflow:hidden;margin-top:8px">
+    <button class="lang-btn" onclick="setLang('es');toggleMenu()"
+            style="padding:10px 24px;font-family:'Cinzel',serif;font-size:12px;
+                   letter-spacing:2px;background:transparent;color:var(--gold);
+                   border:none;cursor:pointer">ES</button>
+    <div style="width:1px;background:rgba(201,168,76,0.3)"></div>
+    <button class="lang-btn" onclick="setLang('en');toggleMenu()"
+            style="padding:10px 24px;font-family:'Cinzel',serif;font-size:12px;
+                   letter-spacing:2px;background:transparent;color:var(--gold);
+                   border:none;cursor:pointer">EN</button>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════
@@ -1737,7 +1841,7 @@ body.lang-en span[data-lang="es"] { display: none; }
 <!-- PANEL PRINCIPAL -->
 <div id="admin-panel"
      style="display:none;position:fixed;top:0;right:0;bottom:0;z-index:5500;
-            width:440px;background:#0f0d0a;border-left:1px solid rgba(201,168,76,0.2);
+            width:min(440px,100vw);background:#0f0d0a;border-left:1px solid rgba(201,168,76,0.2);
             overflow-y:auto;font-family:'EB Garamond',Georgia,serif;
             box-shadow:-12px 0 48px rgba(0,0,0,0.7)">
 
