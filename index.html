@@ -2234,6 +2234,7 @@ function sendForm(e) {
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
+var adminActivo = false;
 var CONFIG_KEY = 'artealq_config';
 var OBRAS_KEY = 'artealq_obras';
 var RATINGS_KEY = 'artealq_ratings';
@@ -2315,6 +2316,11 @@ function renderObra(obra) {
     ? '<div style="position:absolute;top:12px;left:12px;background:rgba(240,96,96,0.9);color:#fff;font-family:Cinzel,serif;font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:2px;z-index:2">🔴 VENDIDA</div>'
     : '<div style="position:absolute;top:12px;left:12px;background:rgba(93,222,138,0.85);color:#0d0b08;font-family:Cinzel,serif;font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:2px;z-index:2">🟢 DISPONIBLE</div>';
 
+  var adminBtns = '<div class="obra-admin-btns" style="display:none;position:absolute;top:10px;right:10px;z-index:5;display:flex;gap:6px;display:none">' +
+    '<button onclick="abrirEditarObra(' + obra.id + ')" style="background:#22c55e;border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);transition:transform 0.2s" title="Editar obra" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">✏️</button>' +
+    '<button onclick="if(confirm('¿Eliminar esta obra?'))eliminarObra(' + obra.id + ')" style="background:#ef4444;border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);transition:transform 0.2s" title="Borrar obra" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">🗑️</button>' +
+    '</div>';
+
   var starsHtml = '';
   for (var i = 1; i <= 5; i++) {
     var color = (avg && i <= Math.round(parseFloat(avg))) ? '#c9a84c' : '#3a3530';
@@ -2329,7 +2335,7 @@ function renderObra(obra) {
     ? '<button onclick="openArtistCard()" style="display:block;width:100%;text-align:center;font-family:Cinzel,serif;font-size:10px;letter-spacing:3px;text-transform:uppercase;padding:10px;border:1px solid var(--gold);color:var(--gold);background:transparent;cursor:pointer;margin-top:12px;box-sizing:border-box;transition:all 0.3s" onmouseover="this.style.background=\'var(--gold)\';this.style.color=\'var(--ink)\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'var(--gold)\'">📩 Consultar / Adquirir</button>'
     : '';
 
-  el.innerHTML = badge +
+  el.innerHTML = badge + (adminActivo ? adminBtns : '') +
     '<img class="gallery-img" src="' + obra.src + '" alt="' + (obra.titulo || 'Obra') + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block;filter:sepia(10%)">' +
     '<div style="padding:16px;background:var(--ink3)">' +
       '<p style="font-family:Cinzel,serif;font-size:13px;letter-spacing:1px;color:var(--gold-light);margin-bottom:4px">' + (obra.titulo || 'Sin título') + '</p>' +
@@ -2548,6 +2554,8 @@ function openAdmin() {
   var overlay = document.getElementById('panel-overlay');
   if (panel) panel.style.display = 'block';
   if (overlay) overlay.style.display = 'block';
+  adminActivo = true;
+  mostrarBotonesAdmin(true);
   showTab('tab-obras');
   renderAdminLista();
 }
@@ -2557,6 +2565,14 @@ function closeAdmin() {
   var overlay = document.getElementById('panel-overlay');
   if (panel) panel.style.display = 'none';
   if (overlay) overlay.style.display = 'none';
+  adminActivo = false;
+  mostrarBotonesAdmin(false);
+}
+
+function mostrarBotonesAdmin(mostrar) {
+  document.querySelectorAll('.obra-admin-btns').forEach(function(el) {
+    el.style.display = mostrar ? 'flex' : 'none';
+  });
 }
 
 // ─── Tabs ────────────────────────────────────────────────────────────────
@@ -2779,6 +2795,11 @@ function toggleEstadoObra(id) {
   var el = document.querySelector('[data-obra-id="' + id + '"]');
   if (el) { el.remove(); renderObra(o); }
   renderAdminLista();
+}
+
+function eliminarObraDirecto(id) {
+  if (!confirm('¿Eliminar esta obra de la galería?')) return;
+  eliminarObra(id);
 }
 
 function eliminarObra(id) {
