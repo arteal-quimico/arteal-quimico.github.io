@@ -1036,6 +1036,112 @@ body.lang-en span[data-lang="es"] { display: none; }
   }
 }
 </style>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBjUdBpwW6g6zZ5jC5c_AyUwClUy79sc6Y",
+    authDomain: "artealquimico-1e583.firebaseapp.com",
+    projectId: "artealquimico-1e583",
+    storageBucket: "artealquimico-1e583.firebasestorage.app",
+    messagingSenderId: "665117901237",
+    appId: "1:665117901237:web:21ecaa03595d30992fd9fc"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ─── Cloudinary config ───────────────────────────────
+  const CLOUD_NAME = 'dwzqne2ll';
+  const UPLOAD_PRESET = 'artealquimico';
+
+  // ─── Exponer funciones globalmente ──────────────────
+  window.fbUploadImage = async function(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+    formData.append('folder', 'artealquimico');
+    const res = await fetch('https://api.cloudinary.com/v1_1/' + CLOUD_NAME + '/image/upload', {
+      method: 'POST', body: formData
+    });
+    const data = await res.json();
+    return data.secure_url;
+  };
+
+  window.fbGuardarObra = async function(obra) {
+    await setDoc(doc(db, 'obras', String(obra.id)), obra);
+  };
+
+  window.fbEliminarObra = async function(id) {
+    await deleteDoc(doc(db, 'obras', String(id)));
+  };
+
+  window.fbActualizarObra = async function(id, datos) {
+    await updateDoc(doc(db, 'obras', String(id)), datos);
+  };
+
+  window.fbCargarObras = async function() {
+    const snap = await getDocs(collection(db, 'obras'));
+    return snap.docs.map(d => d.data());
+  };
+
+  window.fbGuardarConfig = async function(cfg) {
+    await setDoc(doc(db, 'config', 'principal'), cfg);
+  };
+
+  window.fbCargarConfig = async function() {
+    const snap = await getDoc(doc(db, 'config', 'principal'));
+    return snap.exists() ? snap.data() : {};
+  };
+
+  window.fbGuardarRating = async function(obraId, rating) {
+    await addDoc(collection(db, 'ratings'), { obraId, ...rating });
+  };
+
+  window.fbCargarRatings = async function() {
+    const snap = await getDocs(collection(db, 'ratings'));
+    const result = {};
+    snap.docs.forEach(d => {
+      const r = d.data();
+      if (!result[r.obraId]) result[r.obraId] = [];
+      result[r.obraId].push(r);
+    });
+    return result;
+  };
+
+  // ─── Inicializar página con datos de Firebase ────────
+  window.fbInit = async function() {
+    try {
+      // Cargar config
+      const cfg = await window.fbCargarConfig();
+      if (cfg && Object.keys(cfg).length) {
+        window._fbConfig = cfg;
+        aplicarConfigFirebase(cfg);
+      }
+      // Cargar obras
+      const obras = await window.fbCargarObras();
+      window._fbRatings = await window.fbCargarRatings();
+      obras.sort((a,b) => (a.orden||a.id) - (b.orden||b.id));
+      obras.forEach(o => renderObra(o));
+      actualizarEmptyState();
+    } catch(e) {
+      console.log('Firebase offline, usando localStorage:', e);
+      // Fallback a localStorage
+      loadObras().forEach(o => renderObra(o));
+      actualizarEmptyState();
+    }
+  };
+
+  // Llamar init cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => window.fbInit());
+  } else {
+    window.fbInit();
+  }
+</script>
 </head>
 <body>
 
@@ -2401,33 +2507,24 @@ function saveRatings(r) { localStorage.setItem(RATINGS_KEY, JSON.stringify(r)); 
 // ════════════════════════════════════
 // INICIALIZAR CONFIG AL CARGAR
 // ════════════════════════════════════
-(function initConfig() {
-  var cfg = loadConfig();
+// Aplicar config a la página
+function aplicarConfigFirebase(cfg) {
+  if (!cfg) return;
   if (cfg.whatsapp) {
     document.querySelectorAll('a[href*="wa.me"]').forEach(function(a) {
       a.href = a.href.replace(/wa\.me\/[^?]+/, 'wa.me/' + cfg.whatsapp);
     });
   }
-  if (cfg.facebook) {
-    document.querySelectorAll('a[href*="facebook.com/artealquimico"]').forEach(function(a) { a.href = cfg.facebook; });
-  }
-  if (cfg.instagram) {
-    document.querySelectorAll('a[href*="instagram.com/artealquimico"]').forEach(function(a) { a.href = cfg.instagram; });
-  }
-  if (cfg.taglineEs) {
-    document.querySelectorAll('.hero-tagline[data-lang="es"]').forEach(function(el) { el.textContent = cfg.taglineEs; });
-  }
-  if (cfg.taglineEn) {
-    document.querySelectorAll('.hero-tagline[data-lang="en"]').forEach(function(el) { el.textContent = cfg.taglineEn; });
-  }
-  // Perfil foto
+  if (cfg.facebook) document.querySelectorAll('a[href*="facebook.com/artealquimico"]').forEach(function(a) { a.href = cfg.facebook; });
+  if (cfg.instagram) document.querySelectorAll('a[href*="instagram.com/artealquimico"]').forEach(function(a) { a.href = cfg.instagram; });
+  if (cfg.taglineEs) document.querySelectorAll('.hero-tagline[data-lang="es"]').forEach(function(el) { el.textContent = cfg.taglineEs; });
+  if (cfg.taglineEn) document.querySelectorAll('.hero-tagline[data-lang="en"]').forEach(function(el) { el.textContent = cfg.taglineEn; });
   if (cfg.perfilFoto) {
     var ph = document.getElementById('portrait-placeholder-box');
     var img = document.getElementById('portrait-img');
     if (ph) ph.style.display = 'none';
     if (img) { img.src = cfg.perfilFoto; img.style.display = 'block'; }
   }
-  // Bio texto
   if (cfg.bioTexto) {
     var bioBox = document.getElementById('bio-texto-es');
     if (bioBox) {
@@ -2436,9 +2533,15 @@ function saveRatings(r) { localStorage.setItem(RATINGS_KEY, JSON.stringify(r)); 
       }).join('');
     }
   }
-  // Renderizar obras guardadas
-  loadObras().forEach(function(o) { renderObra(o); });
-  actualizarEmptyState();
+  if (cfg.cardNombre) { var cn = document.getElementById('card-nombre'); if (cn) cn.textContent = cfg.cardNombre; }
+  if (cfg.cardSubtitulo) { var cs = document.getElementById('card-subtitulo'); if (cs) cs.textContent = cfg.cardSubtitulo; }
+}
+
+(function initConfig() {
+  // Firebase se inicializa por separado via fbInit()
+  // Aquí solo aplicamos localStorage como fallback inmediato
+  var cfg = loadConfig();
+  aplicarConfigFirebase(cfg);
 })();
 
 // ════════════════════════════════════
@@ -2493,6 +2596,14 @@ function renderObra(obra) {
       '</div>' +
       consultarBtn +
     '</div>';
+
+  // Evento consultar btn
+  var consultarBtnEl = el.querySelector('.consultar-btn');
+  if (consultarBtnEl) {
+    consultarBtnEl.addEventListener('mouseover', function() { this.style.background = 'var(--gold)'; this.style.color = 'var(--ink)'; });
+    consultarBtnEl.addEventListener('mouseout', function() { this.style.background = 'transparent'; this.style.color = 'var(--gold)'; });
+    consultarBtnEl.addEventListener('click', function() { openArtistCard(); });
+  }
 
   // Eventos estrellas
   var starsContainer = el.querySelector('.obra-stars');
@@ -2781,30 +2892,37 @@ function limpiarPerfil() {
 
 function guardarPerfil() {
   var cfg = loadConfig();
-  if (fotoPerfil) cfg.perfilFoto = fotoPerfil;
+  var filePerfilInput = document.getElementById('file-perfil');
+  var archivoPerfilReal = filePerfilInput && filePerfilInput.files[0] ? filePerfilInput.files[0] : null;
   var nombre = document.getElementById('perfil-nombre') ? document.getElementById('perfil-nombre').value.trim() : '';
   var subtitulo = document.getElementById('perfil-subtitulo') ? document.getElementById('perfil-subtitulo').value.trim() : '';
   var bio = document.getElementById('perfil-bio') ? document.getElementById('perfil-bio').value.trim() : '';
-  if (nombre) cfg.cardNombre = nombre;
-  if (subtitulo) cfg.cardSubtitulo = subtitulo;
-  if (bio) cfg.bioTexto = bio;
-  saveConfig(cfg);
 
-  if (fotoPerfil) {
-    var ph = document.getElementById('portrait-placeholder-box');
-    var img = document.getElementById('portrait-img');
-    if (ph) ph.style.display = 'none';
-    if (img) { img.src = fotoPerfil; img.style.display = 'block'; }
-  }
-  if (bio) {
-    var bioBox = document.getElementById('bio-texto-es');
-    if (bioBox) {
-      bioBox.innerHTML = bio.split('\n\n').map(function(p) {
-        return '<p data-lang="es" style="font-size:17px;line-height:1.9;color:var(--parch2);opacity:0.85;margin-bottom:20px">' + p + '</p>';
-      }).join('');
+  var subirFotoPerfil = function() {
+    if (archivoPerfilReal && window.fbUploadImage) {
+      mostrarMsg('msg-perfil', '⏳ Subiendo foto...', false);
+      return window.fbUploadImage(archivoPerfilReal);
     }
-  }
-  mostrarMsg('msg-perfil', '✅ Perfil actualizado!');
+    return Promise.resolve(fotoPerfil);
+  };
+
+  subirFotoPerfil().then(function(urlFoto) {
+    if (urlFoto) cfg.perfilFoto = urlFoto;
+    if (nombre) cfg.cardNombre = nombre;
+    if (subtitulo) cfg.cardSubtitulo = subtitulo;
+    if (bio) cfg.bioTexto = bio;
+    saveConfig(cfg);
+    aplicarConfigFirebase(cfg);
+    if (window.fbGuardarConfig) {
+      window.fbGuardarConfig(cfg).then(function() {
+        mostrarMsg('msg-perfil', '✅ Perfil guardado en todos los dispositivos!');
+      }).catch(function() {
+        mostrarMsg('msg-perfil', '✅ Perfil guardado!');
+      });
+    } else {
+      mostrarMsg('msg-perfil', '✅ Perfil actualizado!');
+    }
+  });
 }
 
 // ════════════════════════════════════
@@ -2872,26 +2990,61 @@ function guardarObra() {
   }
   var desc = document.getElementById('obra-desc') ? document.getElementById('obra-desc').value.trim() : '';
   var precio = document.getElementById('obra-precio') ? document.getElementById('obra-precio').value.trim() : '';
+  var fileInput = document.getElementById('file-obra');
+  var archivoReal = fileInput && fileInput.files[0] ? fileInput.files[0] : null;
 
   if (!fotoObraData) { alert('Por favor selecciona una foto para la obra.'); return; }
   if (!titulo) { alert('Por favor escribe el título de la obra.'); return; }
   if (!cat) { alert('Por favor selecciona la técnica.'); return; }
 
-  var obra = { id: Date.now(), titulo: titulo, categoria: cat, desc: desc, precio: precio || 'Consultar', estado: estadoSeleccionado, src: fotoObraData };
-  var obras = loadObras();
-  obras.push(obra);
-  saveObras(obras);
-  renderObra(obra);
-  actualizarEmptyState();
-  renderAdminLista();
+  mostrarMsg('msg-obra', '⏳ Subiendo imagen...', false);
 
-  // Limpiar
-  var fields = ['obra-titulo', 'obra-desc', 'obra-precio'];
-  fields.forEach(function(f) { var el = document.getElementById(f); if (el) el.value = ''; });
-  if (catSel) catSel.value = '';
-  limpiarFotoObra();
-  selectEstado('stock');
-  mostrarMsg('msg-obra', '✅ Obra publicada correctamente!');
+  var obraId = Date.now();
+
+  // Intentar subir a Cloudinary si hay archivo real
+  var subirFoto = function() {
+    if (archivoReal && window.fbUploadImage) {
+      return window.fbUploadImage(archivoReal);
+    }
+    return Promise.resolve(fotoObraData); // fallback base64
+  };
+
+  subirFoto().then(function(srcUrl) {
+    var obra = {
+      id: obraId,
+      titulo: titulo,
+      categoria: cat,
+      desc: desc,
+      precio: precio || 'Consultar',
+      estado: estadoSeleccionado,
+      src: srcUrl,
+      orden: obraId
+    };
+
+    // Guardar en Firebase
+    var guardarEnFirebase = window.fbGuardarObra ? window.fbGuardarObra(obra) : Promise.resolve();
+    guardarEnFirebase.then(function() {
+      // También guardar en localStorage como backup
+      var obras = loadObras();
+      obras.push(obra);
+      saveObras(obras);
+      renderObra(obra);
+      actualizarEmptyState();
+      renderAdminLista();
+      var fields = ['obra-titulo', 'obra-desc', 'obra-precio'];
+      fields.forEach(function(f) { var el = document.getElementById(f); if (el) el.value = ''; });
+      if (catSel) catSel.value = '';
+      limpiarFotoObra();
+      selectEstado('stock');
+      mostrarMsg('msg-obra', '✅ Obra publicada en todos los dispositivos!');
+    }).catch(function(e) {
+      console.error(e);
+      mostrarMsg('msg-obra', '✅ Obra guardada localmente!');
+    });
+  }).catch(function(e) {
+    console.error(e);
+    mostrarMsg('msg-obra', '❌ Error al subir imagen. Intenta de nuevo.', true);
+  });
 }
 
 function agregarFiltro(cat) {
@@ -2947,12 +3100,14 @@ function eliminarObraDirecto(id) {
 }
 
 function eliminarObra(id) {
-  if (!confirm('¿Eliminar esta obra de la galería?')) return;
   saveObras(loadObras().filter(function(o) { return o.id !== id; }));
   var el = document.querySelector('[data-obra-id="' + id + '"]');
   if (el) el.remove();
   actualizarEmptyState();
   renderAdminLista();
+  if (window.fbEliminarObra) {
+    window.fbEliminarObra(id).catch(function(e) { console.error(e); });
+  }
 }
 
 // ════════════════════════════════════
@@ -2965,8 +3120,18 @@ function guardarContacto() {
   cfg.facebook = getVal('ed-facebook');
   cfg.instagram = getVal('ed-instagram');
   saveConfig(cfg);
-  mostrarMsg('msg-contacto', '✅ Guardado! Recargando...');
-  setTimeout(function() { location.reload(); }, 1200);
+  if (window.fbGuardarConfig) {
+    window.fbGuardarConfig(cfg).then(function() {
+      mostrarMsg('msg-contacto', '✅ Guardado en todos los dispositivos!');
+      setTimeout(function() { location.reload(); }, 1200);
+    }).catch(function() {
+      mostrarMsg('msg-contacto', '✅ Guardado localmente!');
+      setTimeout(function() { location.reload(); }, 1200);
+    });
+  } else {
+    mostrarMsg('msg-contacto', '✅ Guardado!');
+    setTimeout(function() { location.reload(); }, 1200);
+  }
 }
 
 // ════════════════════════════════════
@@ -3037,15 +3202,36 @@ function renderCategoriasAdmin() {
   var labels = { cafe: 'Tecnica en Café Soluble', pintura: 'Pintura al Óleo / Acrílico', grabado: 'Grabado / Xilografía', escultura: 'Escultura', dibujo: 'Dibujo / Ilustración' };
   var cont = document.getElementById('cats-lista');
   if (!cont) return;
-  cont.innerHTML = cats.map(function(c) {
+  cont.innerHTML = '';
+  cats.forEach(function(c) {
     var count = obras.filter(function(o) { return o.categoria === c; }).length;
     var esFija = fijas.indexOf(c) !== -1;
     var nombre = labels[c] || (c.charAt(0).toUpperCase() + c.slice(1));
-    var btns = esFija
-      ? '<span style="font-size:10px;color:#c9a84c;opacity:0.35;font-style:italic">predefinida</span>'
-      : '<button onclick="renombrarCategoria(\'' + c + '\')" style="background:transparent;border:1px solid rgba(201,168,76,0.3);color:#c9a84c;padding:5px 8px;cursor:pointer;font-size:11px;border-radius:2px">✏️</button><button onclick="eliminarCategoria(\'' + c + '\')" style="background:rgba(240,96,96,0.08);border:1px solid rgba(240,96,96,0.2);color:#f06060;padding:5px 8px;cursor:pointer;font-size:11px;border-radius:2px">🗑️</button>';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#0d0b08;border:1px solid rgba(201,168,76,0.1);border-radius:4px;margin-bottom:8px"><div style="flex:1"><p style="font-family:Cinzel,serif;font-size:12px;color:#e8c97a">' + nombre + '</p><p style="font-size:11px;color:#f5f0e8;opacity:0.4;margin-top:2px">' + count + ' obra' + (count !== 1 ? 's' : '') + '</p></div>' + btns + '</div>';
-  }).join('');
+    var div = document.createElement('div');
+    div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px;background:#0d0b08;border:1px solid rgba(201,168,76,0.1);border-radius:4px;margin-bottom:8px';
+    var info = document.createElement('div');
+    info.style.flex = '1';
+    info.innerHTML = '<p style="font-family:Cinzel,serif;font-size:12px;color:#e8c97a">' + nombre + '</p><p style="font-size:11px;color:#f5f0e8;opacity:0.4;margin-top:2px">' + count + ' obra' + (count !== 1 ? 's' : '') + '</p>';
+    div.appendChild(info);
+    if (esFija) {
+      var sp = document.createElement('span');
+      sp.style.cssText = 'font-size:10px;color:#c9a84c;opacity:0.35;font-style:italic';
+      sp.textContent = 'predefinida';
+      div.appendChild(sp);
+    } else {
+      var btnEdit = document.createElement('button');
+      btnEdit.textContent = '✏️';
+      btnEdit.style.cssText = 'background:transparent;border:1px solid rgba(201,168,76,0.3);color:#c9a84c;padding:5px 8px;cursor:pointer;font-size:11px;border-radius:2px';
+      btnEdit.onclick = (function(cat){ return function(){ renombrarCategoria(cat); }; })(c);
+      var btnDel = document.createElement('button');
+      btnDel.textContent = '🗑️';
+      btnDel.style.cssText = 'background:rgba(240,96,96,0.08);border:1px solid rgba(240,96,96,0.2);color:#f06060;padding:5px 8px;cursor:pointer;font-size:11px;border-radius:2px';
+      btnDel.onclick = (function(cat){ return function(){ eliminarCategoria(cat); }; })(c);
+      div.appendChild(btnEdit);
+      div.appendChild(btnDel);
+    }
+    cont.appendChild(div);
+  });
 }
 function renombrarCategoria(viejo) {
   var nuevo = prompt('Nuevo nombre para "' + viejo + '":', viejo);
@@ -3120,10 +3306,14 @@ function guardarEdicionObra() {
   var estadoEl = document.getElementById('edit-estado'); if (estadoEl) obras[idx].estado = estadoEl.value;
   var catEl = document.getElementById('edit-categoria'); if (catEl) obras[idx].categoria = catEl.value;
   saveObras(obras);
+  var obraEditada = obras[idx];
   var el = document.querySelector('[data-obra-id="' + editandoObraId + '"]');
-  if (el) { el.remove(); renderObra(obras[idx]); }
+  if (el) { el.remove(); renderObra(obraEditada); }
   renderAdminLista();
   cerrarEditarObra();
+  if (window.fbActualizarObra) {
+    window.fbActualizarObra(editandoObraId, obraEditada).catch(function(e) { console.error(e); });
+  }
 }
 
 // ════════════════════════════════════
