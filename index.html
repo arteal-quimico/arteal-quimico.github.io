@@ -244,12 +244,6 @@ body.lang-en span[data-lang="es"] { display: none; }
   };
 
   window.fbEliminarObra = async function(id) {
-    // Guardar en lista negra ANTES de borrar, para que onSnapshot no la vuelva a renderizar
-    try {
-      var borradas = JSON.parse(sessionStorage.getItem('obras_borradas') || '[]');
-      if (borradas.indexOf(String(id)) === -1) borradas.push(String(id));
-      sessionStorage.setItem('obras_borradas', JSON.stringify(borradas));
-    } catch(e) {}
     await deleteDoc(doc(db, 'obras', String(id)));
   };
 
@@ -315,26 +309,32 @@ body.lang-en span[data-lang="es"] { display: none; }
 
       onSnapshot(collection(db, 'obras'), function(snap) {
 
-        // ── PRIMERA CARGA: limpiar DOM y renderizar solo lo que Firebase tiene ──
+        // ── PRIMERA CARGA: sincronizar DOM exactamente con Firebase ──
         if (primeraVez) {
           primeraVez = false;
           const grid = document.getElementById('galleryGrid');
+
+          // IDs que Firebase tiene actualmente (fuente de verdad)
+          const idsFirebase = new Set(snap.docs.map(function(d) { return String(d.data().id); }));
+
           if (grid) {
-            // Eliminar cualquier obra que pudiera estar en el DOM (p.ej. de localStorage viejo)
+            // Borrar del DOM cualquier obra que Firebase ya NO tiene
             grid.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(el) {
-              el.remove();
+              if (!idsFirebase.has(String(el.dataset.obraId))) {
+                el.remove();
+              }
             });
           }
-          // Renderizar exactamente lo que Firebase tiene
-          // Filtrar obras que fueron borradas en esta sesión
-          var borradas = [];
-          try { borradas = JSON.parse(sessionStorage.getItem('obras_borradas') || '[]'); } catch(e) {}
+
+          // Renderizar las obras de Firebase que no están aún en el DOM
           snap.docs.forEach(function(docSnap) {
             var obraData = docSnap.data();
-            if (borradas.indexOf(String(obraData.id)) === -1) {
+            var existe = document.querySelector('[data-obra-id="' + obraData.id + '"]');
+            if (!existe) {
               renderObra(obraData);
             }
           });
+
           actualizarEmptyState();
           if (adminActivo) {
             setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
@@ -348,10 +348,7 @@ body.lang-en span[data-lang="es"] { display: none; }
           const elExistente = document.querySelector('[data-obra-id="' + obra.id + '"]');
 
           if (change.type === 'added') {
-            // Verificar que no está en la lista negra de obras borradas en esta sesión
-            var borradas = [];
-            try { borradas = JSON.parse(sessionStorage.getItem('obras_borradas') || '[]'); } catch(e) {}
-            if (!elExistente && borradas.indexOf(String(obra.id)) === -1) {
+            if (!elExistente) {
               renderObra(obra);
             }
           } else if (change.type === 'modified') {
@@ -360,13 +357,19 @@ body.lang-en span[data-lang="es"] { display: none; }
             }
             renderObra(obra);
           } else if (change.type === 'removed') {
-            if (elExistente) {
-              elExistente.style.transition = 'opacity 0.4s';
-              elExistente.style.opacity = '0';
+            // Buscar el elemento de forma robusta (string o número)
+            var elABorrar = document.querySelector('[data-obra-id="' + obra.id + '"]') ||
+                            document.querySelector('[data-obra-id="' + String(obra.id) + '"]');
+            if (elABorrar) {
+              elABorrar.style.transition = 'opacity 0.4s';
+              elABorrar.style.opacity = '0';
               setTimeout(function() {
-                if (elExistente.parentNode) elExistente.remove();
+                if (elABorrar.parentNode) elABorrar.remove();
                 actualizarEmptyState();
               }, 400);
+            } else {
+              // No encontró el elemento en el DOM pero igual actualizar estado
+              actualizarEmptyState();
             }
           }
         });
