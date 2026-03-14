@@ -1082,7 +1082,8 @@ body.lang-en span[data-lang="es"] { display: none; }
   };
 
   window.fbActualizarObra = async function(id, datos) {
-    await updateDoc(doc(db, 'obras', String(id)), datos);
+    // Usar setDoc para reemplazar el documento completo y garantizar que onSnapshot dispare
+    await setDoc(doc(db, 'obras', String(id)), datos);
   };
 
   window.fbCargarObras = async function() {
@@ -1935,7 +1936,7 @@ body.lang-en span[data-lang="es"] { display: none; }
     <div style="margin-bottom:14px">
       <label style="display:block;font-family:'Cinzel',serif;font-size:10px;
                     letter-spacing:2px;color:#c9a84c;margin-bottom:7px">USUARIO</label>
-      <input type="text" id="admin-user"
+      <input type="text" id="admin-user" autocomplete="username"
              style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.25);
                     color:#f5f0e8;font-size:16px;padding:13px 14px;outline:none;
                     font-family:'EB Garamond',serif;box-sizing:border-box"
@@ -2398,7 +2399,7 @@ body.lang-en span[data-lang="es"] { display: none; }
                       letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
           NUEVA CONTRASEÑA (mínimo 6 caracteres)</label>
         <div style="position:relative">
-          <input type="password" id="ed-newpass"
+          <input type="password" id="ed-newpass" autocomplete="new-password"
                  style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
                         color:#f5f0e8;font-size:15px;padding:11px 44px 11px 13px;outline:none;
                         font-family:'EB Garamond',serif;box-sizing:border-box"
@@ -2417,7 +2418,7 @@ body.lang-en span[data-lang="es"] { display: none; }
                       letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
           CONFIRMAR CONTRASEÑA</label>
         <div style="position:relative">
-          <input type="password" id="ed-newpass2"
+          <input type="password" id="ed-newpass2" autocomplete="new-password"
                  style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
                         color:#f5f0e8;font-size:15px;padding:11px 44px 11px 13px;outline:none;
                         font-family:'EB Garamond',serif;box-sizing:border-box"
@@ -3408,9 +3409,11 @@ function guardarEdicionObra() {
   var catEl = document.getElementById('edit-categoria'); if (catEl) obras[idx].categoria = catEl.value;
   saveObras(obras);
   var obraEditada = obras[idx];
-  // Eliminar del DOM — onSnapshot se encarga de volver a renderizar
-  var toRemove = document.querySelectorAll('[data-obra-id="' + editandoObraId + '"]');
-  toRemove.forEach(function(el) { el.remove(); });
+  // Actualizar DOM local inmediatamente
+  var elLocal = document.querySelector('[data-obra-id="' + editandoObraId + '"]');
+  if (elLocal) { elLocal.remove(); }
+  renderObra(obraEditada);
+  if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
   renderAdminLista();
   cerrarEditarObra();
   if (window.fbActualizarObra) {
