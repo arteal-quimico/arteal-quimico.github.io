@@ -1921,13 +1921,20 @@ body.lang-en span[data-lang="es"] { display: none; }
     <div style="margin-bottom:20px">
       <label style="display:block;font-family:'Cinzel',serif;font-size:10px;
                     letter-spacing:2px;color:#c9a84c;margin-bottom:7px">CONTRASEÑA</label>
-      <input type="password" id="admin-pass"
-             style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.25);
-                    color:#f5f0e8;font-size:16px;padding:13px 14px;outline:none;
-                    font-family:'EB Garamond',serif;box-sizing:border-box"
-             placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"
-             onfocus="this.style.borderColor='#c9a84c'"
-             onblur="this.style.borderColor='rgba(201,168,76,0.25)'"/>
+      <div style="position:relative">
+        <input type="password" id="admin-pass"
+               style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.25);
+                      color:#f5f0e8;font-size:16px;padding:13px 44px 13px 14px;outline:none;
+                      font-family:'EB Garamond',serif;box-sizing:border-box"
+               placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"
+               onfocus="this.style.borderColor='#c9a84c'"
+               onblur="this.style.borderColor='rgba(201,168,76,0.25)'"/>
+        <button type="button" onclick="toggleVerPass('admin-pass', this)"
+                style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                       background:none;border:none;cursor:pointer;color:#c9a84c;
+                       opacity:0.6;padding:4px;font-size:18px;line-height:1"
+                title="Ver contraseña">👁️</button>
+      </div>
     </div>
     <div id="login-error"
          style="display:none;background:rgba(240,96,96,0.1);border:1px solid rgba(240,96,96,0.3);
@@ -2365,25 +2372,39 @@ body.lang-en span[data-lang="es"] { display: none; }
         <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
                       letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
           NUEVA CONTRASEÑA (mínimo 6 caracteres)</label>
-        <input type="password" id="ed-newpass"
-               style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
-                      color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
-                      font-family:'EB Garamond',serif;box-sizing:border-box"
-               placeholder="Nueva contraseña"
-               onfocus="this.style.borderColor='#c9a84c'"
-               onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+        <div style="position:relative">
+          <input type="password" id="ed-newpass"
+                 style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
+                        color:#f5f0e8;font-size:15px;padding:11px 44px 11px 13px;outline:none;
+                        font-family:'EB Garamond',serif;box-sizing:border-box"
+                 placeholder="Nueva contraseña"
+                 onfocus="this.style.borderColor='#c9a84c'"
+                 onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+          <button type="button" onclick="toggleVerPass('ed-newpass', this)"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                         background:none;border:none;cursor:pointer;color:#c9a84c;
+                         opacity:0.6;padding:4px;font-size:16px;line-height:1"
+                  title="Ver contraseña">👁️</button>
+        </div>
       </div>
       <div>
         <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
                       letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
           CONFIRMAR CONTRASEÑA</label>
-        <input type="password" id="ed-newpass2"
-               style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
-                      color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
-                      font-family:'EB Garamond',serif;box-sizing:border-box"
-               placeholder="Repite la contraseña"
-               onfocus="this.style.borderColor='#c9a84c'"
-               onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+        <div style="position:relative">
+          <input type="password" id="ed-newpass2"
+                 style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
+                        color:#f5f0e8;font-size:15px;padding:11px 44px 11px 13px;outline:none;
+                        font-family:'EB Garamond',serif;box-sizing:border-box"
+                 placeholder="Repite la contraseña"
+                 onfocus="this.style.borderColor='#c9a84c'"
+                 onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+          <button type="button" onclick="toggleVerPass('ed-newpass2', this)"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                         background:none;border:none;cursor:pointer;color:#c9a84c;
+                         opacity:0.6;padding:4px;font-size:16px;line-height:1"
+                  title="Ver contraseña">👁️</button>
+        </div>
       </div>
       <button onclick="changePassword()"
               style="width:100%;font-family:'Cinzel',serif;font-size:11px;
@@ -2768,12 +2789,40 @@ function hideAdminLogin() {
 function doLogin() {
   var user = document.getElementById('admin-user') ? document.getElementById('admin-user').value.trim() : '';
   var pass = document.getElementById('admin-pass') ? document.getElementById('admin-pass').value : '';
-  var cfg = loadConfig();
-  var okUser = cfg.adminUser || DEFAULT_USER;
-  var okPass = cfg.adminPass || DEFAULT_PASS;
-  if (user === okUser && pass === okPass) {
-    hideAdminLogin();
-    openAdmin();
+
+  var intentarLogin = function(cfg) {
+    var okUser = cfg.adminUser || DEFAULT_USER;
+    var okPass = cfg.adminPass || DEFAULT_PASS;
+    if (user === okUser && pass === okPass) {
+      // Guardar en localStorage para próxima vez
+      saveConfig(cfg);
+      hideAdminLogin();
+      openAdmin();
+      return true;
+    }
+    return false;
+  };
+
+  // Primero intentar con localStorage
+  var cfgLocal = loadConfig();
+  if (intentarLogin(cfgLocal)) return;
+
+  // Si falla, intentar con Firebase (por si cambió desde otro dispositivo)
+  if (window.fbCargarConfig) {
+    window.fbCargarConfig().then(function(cfgFirebase) {
+      if (!intentarLogin(cfgFirebase)) {
+        // Ninguno funcionó — credenciales incorrectas
+        var err = document.getElementById('login-error');
+        if (err) err.style.display = 'block';
+        var p = document.getElementById('admin-pass');
+        if (p) { p.value = ''; p.focus(); }
+      }
+    }).catch(function() {
+      var err = document.getElementById('login-error');
+      if (err) err.style.display = 'block';
+      var p = document.getElementById('admin-pass');
+      if (p) { p.value = ''; p.focus(); }
+    });
   } else {
     var err = document.getElementById('login-error');
     if (err) err.style.display = 'block';
@@ -3146,7 +3195,16 @@ function changePassword() {
   cfg.adminUser = cfg.adminUser || DEFAULT_USER;
   cfg.adminPass = p1;
   saveConfig(cfg);
-  mostrarMsg('pass-msg', '✅ Contraseña actualizada!');
+  // Guardar en Firebase para que funcione en todos los dispositivos
+  if (window.fbGuardarConfig) {
+    window.fbGuardarConfig(cfg).then(function() {
+      mostrarMsg('pass-msg', '✅ Contraseña actualizada en todos los dispositivos!');
+    }).catch(function() {
+      mostrarMsg('pass-msg', '✅ Contraseña actualizada!');
+    });
+  } else {
+    mostrarMsg('pass-msg', '✅ Contraseña actualizada!');
+  }
   var n1 = document.getElementById('ed-newpass'); if (n1) n1.value = '';
   var n2 = document.getElementById('ed-newpass2'); if (n2) n2.value = '';
 }
@@ -3359,6 +3417,20 @@ function cerrarSesion() {
   mostrarBotonesAdmin(false);
   var btnVolver = document.getElementById('btn-volver-panel');
   if (btnVolver) btnVolver.style.display = 'none';
+}
+
+function toggleVerPass(inputId, btn) {
+  var input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+    btn.style.opacity = '1';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+    btn.style.opacity = '0.6';
+  }
 }
 
 </script>
