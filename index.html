@@ -9,21 +9,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════════
-   VARIABLES & RESET
+   VARIABLES & RESET
 ═══════════════════════════════════════════════════ */
 :root {
-  --gold:        #c9a84c;
-  --gold-light: #e8c97a;
-  --gold-dark:  #7a5f20;
-  --ink:         #0d0b08;
-  --ink2:        #1a1710;
-  --ink3:        #2a2620;
-  --parch:       #f5f0e8;
-  --parch2:      #ede5d0;
-  --text-dark:  #1a1710;
-  --text-mid:   #4a4030;
-  --text-light: #8a7a60;
-  --smoke:      rgba(201,168,76,0.08);
+  --gold:       #c9a84c;
+  --gold-light: #e8c97a;
+  --gold-dark:  #7a5f20;
+  --ink:        #0d0b08;
+  --ink2:       #1a1710;
+  --ink3:       #2a2620;
+  --parch:      #f5f0e8;
+  --parch2:     #ede5d0;
+  --text-dark:  #1a1710;
+  --text-mid:   #4a4030;
+  --text-light: #8a7a60;
+  --smoke:      rgba(201,168,76,0.08);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,438 +31,775 @@
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: 'EB Garamond', Georgia, serif;
-  background: var(--ink);
-  color: var(--parch);
-  overflow-x: hidden;
-  cursor: default;
+  font-family: 'EB Garamond', Georgia, serif;
+  background: var(--ink);
+  color: var(--parch);
+  overflow-x: hidden;
+  cursor: default;
 }
 
 /* ═══════════════════════════════════════════════════
-   GRAIN OVERLAY
+   GRAIN OVERLAY
 ═══════════════════════════════════════════════════ */
 body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.5;
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.5;
 }
 
 /* ═══════════════════════════════════════════════════
-   LANGUAGE TOGGLE
+   LANGUAGE TOGGLE
 ═══════════════════════════════════════════════════ */
 .lang-toggle {
-  display: flex;
-  gap: 0;
-  border: 1px solid var(--gold-dark);
-  border-radius: 4px;
-  overflow: hidden;
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--gold-dark);
+  border-radius: 4px;
+  overflow: hidden;
 }
 .lang-btn {
-  padding: 6px 14px;
-  font-family: 'Cinzel', serif;
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  background: transparent;
-  color: var(--gold);
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s;
+  padding: 6px 14px;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  background: transparent;
+  color: var(--gold);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 .lang-btn.active, .lang-btn:hover {
-  background: var(--gold);
-  color: var(--ink);
+  background: var(--gold);
+  color: var(--ink);
 }
 .lang-btn + .lang-btn { border-left: 1px solid var(--gold-dark); }
 
 /* ═══════════════════════════════════════════════════
-   NAVIGATION
+   NAVIGATION
 ═══════════════════════════════════════════════════ */
 nav {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 900;
-  padding: 0 40px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: linear-gradient(to bottom, rgba(13,11,8,0.98), rgba(13,11,8,0));
-  backdrop-filter: blur(2px);
-  transition: background 0.4s;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 900;
+  padding: 0 40px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(to bottom, rgba(13,11,8,0.98), rgba(13,11,8,0));
+  backdrop-filter: blur(2px);
+  transition: background 0.4s;
 }
 nav.scrolled {
-  background: rgba(13,11,8,0.97);
-  border-bottom: 1px solid rgba(201,168,76,0.15);
+  background: rgba(13,11,8,0.97);
+  border-bottom: 1px solid rgba(201,168,76,0.15);
 }
 .nav-logo {
-  font-family: 'Cinzel Decorative', serif;
-  font-size: 16px;
-  color: var(--gold);
-  letter-spacing: 2px;
-  text-decoration: none;
-  white-space: nowrap;
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 16px;
+  color: var(--gold);
+  letter-spacing: 2px;
+  text-decoration: none;
+  white-space: nowrap;
 }
 .nav-left {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  flex: 1;
 }
 .nav-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .nav-links {
-  display: flex;
-  gap: 24px;
-  list-style: none;
-  align-items: center;
+  display: flex;
+  gap: 24px;
+  list-style: none;
+  align-items: center;
 }
 .nav-links a {
-  font-family: 'Cinzel', serif;
-  font-size: 11px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--parch2);
-  text-decoration: none;
-  transition: color 0.3s;
-  position: relative;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--parch2);
+  text-decoration: none;
+  transition: color 0.3s;
+  position: relative;
 }
 .nav-links a::after {
-  content: '';
-  position: absolute;
-  bottom: -4px; left: 0;
-  width: 0; height: 1px;
-  background: var(--gold);
-  transition: width 0.3s;
+  content: '';
+  position: absolute;
+  bottom: -4px; left: 0;
+  width: 0; height: 1px;
+  background: var(--gold);
+  transition: width 0.3s;
 }
 .nav-links a:hover { color: var(--gold); }
 .nav-links a:hover::after { width: 100%; }
 
 /* Hamburger */
 .hamburger {
-  display: none;
-  flex-direction: column;
-  gap: 5px;
-  cursor: pointer;
-  padding: 4px;
-  background: none;
-  border: none;
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 4px;
+  background: none;
+  border: none;
 }
 .hamburger span {
-  display: block;
-  width: 24px;
-  height: 1px;
-  background: var(--gold);
-  transition: all 0.3s;
+  display: block;
+  width: 24px;
+  height: 1px;
+  background: var(--gold);
+  transition: all 0.3s;
 }
 .mobile-menu {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(13,11,8,0.97);
-  z-index: 800;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 40px;
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(13,11,8,0.97);
+  z-index: 800;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
 }
 .mobile-menu.open { display: flex; }
 .mobile-menu a {
-  font-family: 'Cinzel', serif;
-  font-size: 18px;
-  letter-spacing: 4px;
-  color: var(--gold);
-  text-decoration: none;
-  text-transform: uppercase;
-  transition: opacity 0.2s;
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: opacity 0.2s;
 }
 .mobile-menu a:hover { opacity: 0.7; }
 
 /* ═══════════════════════════════════════════════════
-   HERO
+   HERO
 ═══════════════════════════════════════════════════ */
 #hero {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: var(--ink);
 }
 
+/* Alchemical circle background */
 .alch-circle {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(700px, 95vw);
-  height: min(700px, 95vw);
-  opacity: 0.06;
-  animation: slowSpin 80s linear infinite;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(700px, 95vw);
+  height: min(700px, 95vw);
+  opacity: 0.06;
+  animation: slowSpin 80s linear infinite;
 }
 @keyframes slowSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 
 .hero-content {
-  position: relative;
-  text-align: center;
-  padding: 100px 24px 80px;
-  max-width: 800px;
-  animation: heroFade 1.6s ease both;
+  position: relative;
+  text-align: center;
+  padding: 100px 24px 80px;
+  max-width: 800px;
+  animation: heroFade 1.6s ease both;
 }
 @keyframes heroFade {
-  from { opacity: 0; transform: translateY(30px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .hero-eyebrow {
-  font-family: 'Cinzel', serif;
-  font-size: 11px;
-  letter-spacing: 5px;
-  text-transform: uppercase;
-  color: var(--gold);
-  margin-bottom: 24px;
-  opacity: 0.8;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 24px;
+  opacity: 0.8;
 }
 .hero-title {
-  font-family: 'Cinzel Decorative', serif;
-  font-size: clamp(38px, 7vw, 80px);
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--gold-light);
-  text-shadow: 0 0 60px rgba(201,168,76,0.3);
-  margin-bottom: 12px;
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(38px, 7vw, 80px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--gold-light);
+  text-shadow: 0 0 60px rgba(201,168,76,0.3);
+  margin-bottom: 12px;
 }
 .hero-subtitle {
-  font-family: 'Cinzel Decorative', serif;
-  font-size: clamp(14px, 2.5vw, 22px);
-  font-weight: 400;
-  color: var(--gold);
-  opacity: 0.7;
-  letter-spacing: 3px;
-  margin-bottom: 28px;
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(14px, 2.5vw, 22px);
+  font-weight: 400;
+  color: var(--gold);
+  opacity: 0.7;
+  letter-spacing: 3px;
+  margin-bottom: 28px;
 }
 .hero-tagline {
-  font-style: italic;
-  font-size: clamp(16px, 2vw, 21px);
-  color: var(--parch2);
-  opacity: 0.75;
-  max-width: 520px;
-  margin: 0 auto 48px;
-  line-height: 1.7;
+  font-style: italic;
+  font-size: clamp(16px, 2vw, 21px);
+  color: var(--parch2);
+  opacity: 0.75;
+  max-width: 520px;
+  margin: 0 auto 48px;
+  line-height: 1.7;
 }
 .hero-divider {
-  width: 120px;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--gold), transparent);
-  margin: 0 auto 48px;
+  width: 120px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold), transparent);
+  margin: 0 auto 48px;
 }
 .hero-cta {
-  display: inline-flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: inline-flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 .btn-gold {
-  font-family: 'Cinzel', serif;
-  font-size: 11px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  padding: 14px 36px;
-  border: 1px solid var(--gold);
-  color: var(--gold);
-  background: transparent;
-  text-decoration: none;
-  transition: all 0.3s;
-  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 14px 36px;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  background: transparent;
+  text-decoration: none;
+  transition: all 0.3s;
+  cursor: pointer;
 }
 .btn-gold:hover {
-  background: var(--gold);
-  color: var(--ink);
+  background: var(--gold);
+  color: var(--ink);
 }
 .btn-gold.filled {
-  background: var(--gold);
-  color: var(--ink);
+  background: var(--gold);
+  color: var(--ink);
 }
 .btn-gold.filled:hover {
-  background: var(--gold-light);
-  border-color: var(--gold-light);
+  background: var(--gold-light);
+  border-color: var(--gold-light);
 }
 
 .hero-scroll {
-  position: absolute;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  font-family: 'Cinzel', serif;
-  font-size: 9px;
-  letter-spacing: 3px;
-  color: var(--gold);
-  opacity: 0.5;
-  animation: bounce 2s ease infinite;
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  opacity: 0.5;
+  animation: bounce 2s ease infinite;
 }
 @keyframes bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(8px)} }
 .hero-scroll::after {
-  content: '';
-  width: 1px;
-  height: 40px;
-  background: linear-gradient(to bottom, var(--gold), transparent);
+  content: '';
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(to bottom, var(--gold), transparent);
 }
 
 /* ═══════════════════════════════════════════════════
-   SECTIONS COMMON
+   SECTIONS COMMON
 ═══════════════════════════════════════════════════ */
 section { position: relative; }
 
 .section-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 100px 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 100px 40px;
 }
 
 .section-label {
-  font-family: 'Cinzel', serif;
-  font-size: 10px;
-  letter-spacing: 5px;
-  text-transform: uppercase;
-  color: var(--gold);
-  opacity: 0.7;
-  margin-bottom: 16px;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.7;
+  margin-bottom: 16px;
 }
 .section-title {
-  font-family: 'Cinzel Decorative', serif;
-  font-size: clamp(24px, 4vw, 42px);
-  color: var(--gold-light);
-  margin-bottom: 20px;
-  line-height: 1.2;
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(24px, 4vw, 42px);
+  color: var(--gold-light);
+  margin-bottom: 20px;
+  line-height: 1.2;
 }
 .section-divider {
-  width: 80px;
-  height: 1px;
-  background: linear-gradient(to right, var(--gold), transparent);
-  margin-bottom: 48px;
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(to right, var(--gold), transparent);
+  margin-bottom: 48px;
 }
+.bilingual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+}
+@media (max-width: 700px) { .bilingual { grid-template-columns: 1fr; gap: 24px; } }
+.bilingual .lang-es, .bilingual .lang-en {
+  font-size: 17px;
+  line-height: 1.9;
+  color: var(--parch2);
+  opacity: 0.85;
+}
+.bilingual .lang-en { color: var(--parch); opacity: 0.6; font-style: italic; border-left: 1px solid rgba(201,168,76,0.2); padding-left: 48px; }
+@media (max-width: 700px) { .bilingual .lang-en { border-left: none; padding-left: 0; border-top: 1px solid rgba(201,168,76,0.2); padding-top: 24px; } }
 
 /* ═══════════════════════════════════════════════════
-   ABOUT / HISTORIA
+   ABOUT / HISTORIA
 ═══════════════════════════════════════════════════ */
 #about {
-  background: var(--ink2);
+  background: var(--ink2);
 }
 .about-grid {
-  display: grid;
-  grid-template-columns: 1fr 1.6fr;
-  gap: 80px;
-  align-items: start;
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 80px;
+  align-items: start;
 }
 @media (max-width: 860px) { .about-grid { grid-template-columns: 1fr; gap: 48px; } }
 
+.about-portrait {
+  position: relative;
+}
 .portrait-frame {
-  width: 100%;
-  aspect-ratio: 3/4;
-  background: var(--ink3);
-  border: 1px solid rgba(201,168,76,0.2);
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: var(--ink3);
+  border: 1px solid rgba(201,168,76,0.2);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .portrait-frame img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: sepia(20%) contrast(1.05);
-  transition: transform 0.6s ease;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: sepia(20%) contrast(1.05);
+  transition: transform 0.6s ease;
+}
+.portrait-frame:hover img { transform: scale(1.03); }
+.portrait-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--gold);
+  opacity: 0.3;
+}
+.portrait-placeholder svg { width: 64px; height: 64px; }
+.portrait-placeholder span { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 2px; }
+
+/* Corner ornaments */
+.portrait-frame::before, .portrait-frame::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-color: var(--gold);
+  border-style: solid;
+  opacity: 0.5;
+  z-index: 2;
+}
+.portrait-frame::before { top: 8px; left: 8px; border-width: 1px 0 0 1px; }
+.portrait-frame::after  { bottom: 8px; right: 8px; border-width: 0 1px 1px 0; }
+
+.portrait-caption {
+  margin-top: 16px;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.5;
+  text-align: center;
+}
+
+/* Techniques badges */
+.techniques {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 40px;
+}
+.tech-badge {
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 7px 16px;
+  border: 1px solid rgba(201,168,76,0.35);
+  color: var(--gold);
+  opacity: 0.8;
+  transition: all 0.3s;
+}
+.tech-badge:hover {
+  background: rgba(201,168,76,0.08);
+  opacity: 1;
+}
+.tech-badge.special {
+  border-color: var(--gold);
+  background: rgba(201,168,76,0.08);
+  opacity: 1;
 }
 
 /* ═══════════════════════════════════════════════════
-   GALLERY
+   GALLERY
 ═══════════════════════════════════════════════════ */
 #gallery { background: var(--ink); }
 
 .gallery-filter {
-  display: flex;
-  gap: 0;
-  margin-bottom: 48px;
-  flex-wrap: wrap;
-  border: 1px solid rgba(201,168,76,0.2);
-  width: fit-content;
+  display: flex;
+  gap: 0;
+  margin-bottom: 48px;
+  flex-wrap: wrap;
+  border: 1px solid rgba(201,168,76,0.2);
+  width: fit-content;
 }
 .filter-btn {
-  font-family: 'Cinzel', serif;
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  padding: 10px 24px;
-  background: transparent;
-  color: var(--gold);
-  border: none;
-  border-right: 1px solid rgba(201,168,76,0.2);
-  cursor: pointer;
-  transition: all 0.3s;
-  opacity: 0.6;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 10px 24px;
+  background: transparent;
+  color: var(--gold);
+  border: none;
+  border-right: 1px solid rgba(201,168,76,0.2);
+  cursor: pointer;
+  transition: all 0.3s;
+  opacity: 0.6;
 }
+.filter-btn:last-child { border-right: none; }
 .filter-btn.active, .filter-btn:hover { background: rgba(201,168,76,0.1); opacity: 1; }
 
 .gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
 .gallery-item {
-  position: relative;
-  overflow: hidden;
-  background: var(--ink3);
-  border: 1px solid rgba(201,168,76,0.1);
-  transition: transform 0.4s ease, border-color 0.3s;
+  position: relative;
+  overflow: hidden;
+  background: var(--ink3);
+  border: 1px solid rgba(201,168,76,0.1);
+  cursor: pointer;
+  transition: transform 0.4s ease, border-color 0.3s;
 }
 .gallery-item:hover { transform: translateY(-4px); border-color: rgba(201,168,76,0.35); }
+.gallery-item.featured { grid-column: span 2; }
+@media (max-width: 640px) { .gallery-item.featured { grid-column: span 1; } }
 
 .gallery-img {
-  width: 100%;
-  aspect-ratio: 4/3;
-  object-fit: cover;
-  display: block;
-  cursor: zoom-in;
-  transition: transform 0.5s ease;
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  display: block;
+  filter: sepia(10%);
+  transition: transform 0.5s ease, filter 0.3s;
+}
+.gallery-item:hover .gallery-img { transform: scale(1.04); filter: sepia(0%); }
+
+.gallery-placeholder {
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: var(--ink3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--gold);
+  opacity: 0.25;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 2px;
 }
 
-/* ═══════════════════════════════════════════════════
-   ADMIN & MODALS (Compact)
-═══════════════════════════════════════════════════ */
-#admin-panel {
-  display:none; position:fixed; top:0; right:0; bottom:0; z-index:5500;
-  width:min(440px,100vw); background:#0f0d0a; border-left:1px solid rgba(201,168,76,0.2);
-  overflow-y:auto; box-shadow:-12px 0 48px rgba(0,0,0,0.7);
+.gallery-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(13,11,8,0.9) 0%, transparent 50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.gallery-item:hover .gallery-overlay { opacity: 1; }
+
+.overlay-title {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--gold-light);
+  margin-bottom: 4px;
+}
+.overlay-tech {
+  font-size: 12px;
+  color: var(--parch2);
+  opacity: 0.7;
+  font-style: italic;
 }
 
+.gallery-add-note {
+  margin-top: 40px;
+  text-align: center;
+  font-style: italic;
+  color: var(--gold);
+  opacity: 0.5;
+  font-size: 15px;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+}
+
+/* Lightbox */
 .lightbox {
-  display: none; position: fixed; inset: 0; background: rgba(13,11,8,0.95);
-  z-index: 2000; align-items: center; justify-content: center; padding: 40px;
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(13,11,8,0.95);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
 }
 .lightbox.open { display: flex; }
-.lightbox-img { max-width: 80vw; max-height: 80vh; border: 1px solid rgba(201,168,76,0.3); }
+.lightbox-img {
+  max-width: 80vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border: 1px solid rgba(201,168,76,0.3);
+}
+.lightbox-close {
+  position: absolute;
+  top: 24px; right: 32px;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  cursor: pointer;
+  background: none;
+  border: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.lightbox-close:hover { opacity: 1; }
 
 /* ═══════════════════════════════════════════════════
-   RESPONSIVE
+   CONTACT
 ═══════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  .nav-links { display: none; }
-  .hamburger { display: flex; }
-  .section-inner { padding: 70px 24px; }
-  .gallery-grid { grid-template-columns: 1fr; }
+#contact { background: var(--ink); }
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: start;
+}
+@media (max-width: 760px) { .contact-grid { grid-template-columns: 1fr; gap: 48px; } }
+
+.contact-info { }
+.contact-links {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 36px;
+}
+.contact-link {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-decoration: none;
+  color: var(--parch2);
+  transition: color 0.3s;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(201,168,76,0.1);
+}
+.contact-link:hover { color: var(--gold); }
+.contact-link:hover .contact-link-icon { background: var(--gold); }
+.contact-link-icon {
+  width: 44px; height: 44px;
+  border: 1px solid rgba(201,168,76,0.3);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.contact-link-icon svg { width: 20px; height: 20px; }
+.contact-link-label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.6;
+  display: block;
+  margin-bottom: 2px;
+}
+.contact-link-value { font-size: 15px; }
+
+/* Form */
+.contact-form { }
+.form-group {
+  margin-bottom: 20px;
+}
+.form-label {
+  display: block;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+.form-input, .form-textarea, .form-select {
+  width: 100%;
+  background: var(--ink3);
+  border: 1px solid rgba(201,168,76,0.2);
+  color: var(--parch);
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 15px;
+  padding: 12px 16px;
+  outline: none;
+  transition: border-color 0.3s;
+  appearance: none;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+  border-color: var(--gold);
+}
+.form-input::placeholder, .form-textarea::placeholder { color: var(--parch); opacity: 0.3; }
+.form-textarea { resize: vertical; min-height: 120px; }
+.form-select option { background: var(--ink3); }
+.form-submit {
+  width: 100%;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 15px;
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.form-submit:hover { background: var(--gold); color: var(--ink); }
+.form-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--parch);
+  opacity: 0.4;
+  font-style: italic;
+  text-align: center;
 }
 
+/* ═══════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════ */
+footer {
+  background: var(--ink2);
+  border-top: 1px solid rgba(201,168,76,0.15);
+  padding: 48px 40px;
+  text-align: center;
+}
+.footer-logo {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 20px;
+  color: var(--gold);
+  margin-bottom: 16px;
+  opacity: 0.8;
+}
+.footer-tagline {
+  font-style: italic;
+  font-size: 15px;
+  color: var(--parch);
+  opacity: 0.4;
+  margin-bottom: 32px;
+}
+.footer-links {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.footer-links a {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.5;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+.footer-links a:hover { opacity: 1; }
+.footer-copy {
+  font-size: 12px;
+  color: var(--parch);
+  opacity: 0.25;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 1px;
+}
+
+/* ═══════════════════════════════════════════════════
+   ANIMATIONS ON SCROLL
+═══════════════════════════════════════════════════ */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .hamburger { display: flex; }
+  .section-inner { padding: 70px 24px; }
+  nav { padding: 0 20px; }
+  footer { padding: 40px 24px; }
+}
+
+/* ═══════════════════════════════════════════════════
+   LANGUAGE SWITCHING
+═══════════════════════════════════════════════════ */
 [data-lang="en"] { display: none; }
 body.lang-en [data-lang="en"] { display: block; }
 body.lang-en [data-lang="es"] { display: none; }
@@ -470,258 +807,404 @@ span[data-lang="en"] { display: none; }
 body.lang-en span[data-lang="en"] { display: inline; }
 body.lang-en span[data-lang="es"] { display: none; }
 
-.reveal { opacity: 0; transform: translateY(20px); transition: 0.6s all ease-out; }
-.reveal.visible { opacity: 1; transform: translateY(0); }
+/* ═══ ADMIN RESPONSIVE MÓVIL ═══ */
+@media (max-width: 600px) {
+  #admin-panel { width: 100vw !important; border-left: none !important; }
+  #admin-panel [style*="padding:16px 22px 0"] { padding: 12px 14px 0 !important; gap: 6px !important; }
+  #btn-tab-perfil, #btn-tab-obras, #btn-tab-contacto, #btn-tab-clave { font-size: 8px !important; padding: 7px 10px !important; letter-spacing: 1px !important; }
+  #admin-panel > div:first-child { padding: 14px 16px !important; }
+  #tab-perfil, #tab-obras, #tab-contacto, #tab-clave { padding: 14px !important; }
+}
+@media (max-width: 480px) {
+  .nav-logo { font-size: 13px !important; }
+  .gallery-grid { grid-template-columns: 1fr !important; }
+}
 </style>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBjUdBpwW6g6zZ5jC5c_AyUwClUy79sc6Y",
-    authDomain: "artealquimico-1e583.firebaseapp.com",
-    projectId: "artealquimico-1e583",
-    storageBucket: "artealquimico-1e583.firebasestorage.app",
-    messagingSenderId: "665117901237",
-    appId: "1:665117901237:web:21ecaa03595d30992fd9fc"
-  };
+  const firebaseConfig = {
+    apiKey: "AIzaSyBjUdBpwW6g6zZ5jC5c_AyUwClUy79sc6Y",
+    authDomain: "artealquimico-1e583.firebaseapp.com",
+    projectId: "artealquimico-1e583",
+    storageBucket: "artealquimico-1e583.firebasestorage.app",
+    messagingSenderId: "665117901237",
+    appId: "1:665117901237:web:21ecaa03595d30992fd9fc"
+  };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-  const CLOUD_NAME = 'dwzqne2ll';
-  const UPLOAD_PRESET = 'artealquimico';
-  const OBRAS_KEY = 'artealq_obras';
+  const CLOUD_NAME = 'dwzqne2ll';
+  const UPLOAD_PRESET = 'artealquimico';
+  const OBRAS_KEY = 'artealq_obras';
 
-  // --- Funciones Globales ---
-  window.fbUploadImage = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', UPLOAD_PRESET);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: 'POST', body: formData });
-    const data = await res.json();
-    return data.secure_url;
-  };
+  // ─── Exponer funciones globalmente ──────────────────
+  window.fbUploadImage = async function(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+    formData.append('folder', 'artealquimico');
+    const res = await fetch('https://api.cloudinary.com/v1_1/' + CLOUD_NAME + '/image/upload', {
+      method: 'POST', body: formData
+    });
+    const data = await res.json();
+    return data.secure_url;
+  };
 
-  window.fbGuardarObra = async (obra) => await setDoc(doc(db, 'obras', String(obra.id)), obra);
-  window.fbEliminarObra = async (id) => await deleteDoc(doc(db, 'obras', String(id)));
-  window.fbActualizarObra = async (id, datos) => await updateDoc(doc(db, 'obras', String(id)), datos);
-  window.fbGuardarConfig = async (cfg) => await setDoc(doc(db, 'config', 'principal'), cfg);
-  window.fbCargarConfig = async () => (await getDoc(doc(db, 'config', 'principal'))).data() || {};
+  window.fbGuardarObra = async function(obra) {
+    await setDoc(doc(db, 'obras', String(obra.id)), obra);
+  };
 
-  // --- Inicialización Tiempo Real (CORREGIDA) ---
-  window.fbInit = async function() {
-    try {
-      const cfg = await window.fbCargarConfig();
-      if (cfg) aplicarConfigFirebase(cfg);
+  window.fbEliminarObra = async function(id) {
+    try {
+      await deleteDoc(doc(db, 'obras', String(id)));
+    } catch(e) {
+      console.error('Error eliminando obra:', e);
+    }
+  };
 
-      // Escuchar Config
-      onSnapshot(doc(db, 'config', 'principal'), (snap) => {
-        if (snap.exists()) aplicarConfigFirebase(snap.data());
-      });
+  window.fbActualizarObra = async function(id, datos) {
+    await updateDoc(doc(db, 'obras', String(id)), datos);
+  };
 
-      // Escuchar Obras (Fuente de verdad única)
-      onSnapshot(collection(db, 'obras'), (snap) => {
-        snap.docChanges().forEach((change) => {
-          const docId = change.doc.id;
-          const obra = change.doc.data();
-          let el = document.querySelector(`[data-obra-id="${docId}"]`) || document.querySelector(`[data-obra-id="${obra.id}"]`);
+  window.fbCargarObras = async function() {
+    const snap = await getDocs(collection(db, 'obras'));
+    return snap.docs.map(d => d.data());
+  };
 
-          if (change.type === 'added' && !el) renderObra(obra);
-          else if (change.type === 'modified') { if(el) el.remove(); renderObra(obra); }
-          else if (change.type === 'removed' && el) {
-            el.style.opacity = '0';
-            setTimeout(() => el.remove(), 400);
-          }
-        });
-        actualizarEmptyState();
-        if (window.adminActivo) mostrarBotonesAdmin(true);
-      });
-    } catch(e) { console.error("Error Firebase:", e); }
-  };
+  window.fbGuardarConfig = async function(cfg) {
+    await setDoc(doc(db, 'config', 'principal'), cfg);
+  };
 
-  window.fbInit();
+  window.fbCargarConfig = async function() {
+    const snap = await getDoc(doc(db, 'config', 'principal'));
+    return snap.exists() ? snap.data() : {};
+  };
+
+  window.fbCargarRatings = async function() {
+    const snap = await getDocs(collection(db, 'ratings'));
+    const result = {};
+    snap.docs.forEach(d => {
+      const r = d.data();
+      if (!result[r.obraId]) result[r.obraId] = [];
+      result[r.obraId].push(r);
+    });
+    return result;
+  };
+
+  // ─── Inicializar con tiempo real (Sincronización Real corregida) ────────
+  window.fbInit = async function() {
+    try {
+      // Cargar config una vez
+      const cfg = await window.fbCargarConfig();
+      if (cfg && Object.keys(cfg).length) {
+        window._fbConfig = cfg;
+        aplicarConfigFirebase(cfg);
+      }
+
+      // Escuchar cambios en config
+      onSnapshot(doc(db, 'config', 'principal'), function(snap) {
+        if (snap.exists()) aplicarConfigFirebase(snap.data());
+      });
+
+      // Cargar ratings
+      window._fbRatings = await window.fbCargarRatings();
+
+      // ESCUCHAR OBRAS EN TIEMPO REAL (Fuente única de verdad)
+      onSnapshot(collection(db, 'obras'), function(snap) {
+        
+        // ACTUALIZAR LOCALSTORAGE PARA QUE NO RESUCITEN DATOS BORRADOS
+        const obrasFirebase = snap.docs.map(d => d.data());
+        localStorage.setItem(OBRAS_KEY, JSON.stringify(obrasFirebase));
+
+        snap.docChanges().forEach(function(change) {
+          const docId = change.doc.id;
+          const obra = change.doc.data();
+          
+          var elExistente = document.querySelector('[data-obra-id="' + docId + '"]')
+                         || document.querySelector('[data-obra-id="' + obra.id + '"]');
+
+          if (change.type === 'added') {
+            if (!elExistente) renderObra(obra);
+          } else if (change.type === 'modified') {
+            if (elExistente) elExistente.remove();
+            renderObra(obra);
+          } else if (change.type === 'removed') {
+            if (elExistente) {
+              elExistente.style.opacity = '0';
+              setTimeout(function() { 
+                if (elExistente.parentNode) elExistente.remove(); 
+                actualizarEmptyState();
+              }, 400);
+            }
+          }
+        });
+        actualizarEmptyState();
+        if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
+      });
+
+    } catch(e) {
+      console.log('Firebase offline, usando localStorage:', e);
+      JSON.parse(localStorage.getItem(OBRAS_KEY) || "[]").forEach(function(o) { renderObra(o); });
+      actualizarEmptyState();
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { window.fbInit(); });
+  } else {
+    window.fbInit();
+  }
 </script>
 </head>
 <body>
 
 <nav id="navbar">
-  <div class="nav-left">
-    <a href="#hero" class="nav-logo">Arte Alquímico</a>
-    <ul class="nav-links">
-      <li><a href="#about"><span data-lang="es">Historia</span><span data-lang="en">Story</span></a></li>
-      <li><a href="#gallery"><span data-lang="es">Obras</span><span data-lang="en">Works</span></a></li>
-      <li><a href="#contact"><span data-lang="es">Contacto</span><span data-lang="en">Contact</span></a></li>
-    </ul>
-  </div>
-  <div class="nav-right">
-    <div class="lang-toggle">
-      <button class="lang-btn active" onclick="setLang('es')" id="btn-es">ES</button>
-      <button class="lang-btn" onclick="setLang('en')" id="btn-en">EN</button>
-    </div>
-  </div>
+  <div class="nav-left">
+    <a href="#hero" class="nav-logo">Arte Alquímico</a>
+    <ul class="nav-links">
+      <li><a href="#about"><span data-lang="es">Historia</span><span data-lang="en">Story</span></a></li>
+      <li><a href="#gallery"><span data-lang="es">Obras</span><span data-lang="en">Works</span></a></li>
+      <li><a href="#contact"><span data-lang="es">Contacto</span><span data-lang="en">Contact</span></a></li>
+    </ul>
+  </div>
+  <div class="nav-right">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('es')" id="btn-es">ES</button>
+      <button class="lang-btn" onclick="setLang('en')" id="btn-en">EN</button>
+    </div>
+    <button class="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
 </nav>
 
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#about" onclick="toggleMenu()"><span data-lang="es">Historia</span><span data-lang="en">Story</span></a>
+  <a href="#gallery" onclick="toggleMenu()"><span data-lang="es">Obras</span><span data-lang="en">Works</span></a>
+  <a href="#contact" onclick="toggleMenu()"><span data-lang="es">Contacto</span><span data-lang="en">Contact</span></a>
+</div>
+
 <section id="hero">
-  <div class="hero-content">
-    <p class="hero-eyebrow">Arte Alquímico</p>
-    <h1 class="hero-title">Rolando<br>Ordóñez</h1>
-    <p class="hero-subtitle">Lcdo. Rolando Antonio Ordóñez Segovia</p>
-    <div class="hero-divider"></div>
-    <p class="hero-tagline" data-lang="es">Donde la materia se transforma en arte, y el arte en eternidad.</p>
-    <p class="hero-tagline" data-lang="en">Where matter transforms into art, and art into eternity.</p>
-    <div class="hero-cta">
-      <a href="#gallery" class="btn-gold filled"><span data-lang="es">Ver obras</span><span data-lang="en">Works</span></a>
-      <a href="#contact" class="btn-gold"><span data-lang="es">Contactar</span><span data-lang="en">Contact</span></a>
-    </div>
-  </div>
+  <svg class="alch-circle" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="250" cy="250" r="240" stroke="#c9a84c" stroke-width="0.5"/>
+    <circle cx="250" cy="250" r="200" stroke="#c9a84c" stroke-width="0.5"/>
+    <polygon points="250,50 461,375 39,375" stroke="#c9a84c" stroke-width="0.5" fill="none"/>
+    <polygon points="250,450 39,125 461,125" stroke="#c9a84c" stroke-width="0.5" fill="none"/>
+  </svg>
+  <div class="hero-content">
+    <p class="hero-eyebrow">Arte Alquímico</p>
+    <h1 class="hero-title">Rolando<br>Ordóñez</h1>
+    <p class="hero-subtitle">Lcdo. Rolando Antonio Ordóñez Segovia</p>
+    <div class="hero-divider"></div>
+    <p class="hero-tagline" data-lang="es">Donde la materia se transforma en arte, y el arte en eternidad.</p>
+    <p class="hero-tagline" data-lang="en">Where matter transforms into art, and art into eternity.</p>
+    <div class="hero-cta">
+      <a href="#gallery" class="btn-gold filled"><span data-lang="es">Ver obras</span><span data-lang="en">View works</span></a>
+      <a href="#contact" class="btn-gold"><span data-lang="es">Contactar</span><span data-lang="en">Get in touch</span></a>
+    </div>
+  </div>
 </section>
 
 <section id="about">
-  <div class="section-inner">
-    <div class="about-grid">
-      <div class="portrait-frame reveal">
-        <img id="portrait-img" src="" alt="Artista" style="display:none">
-        <div id="portrait-placeholder" style="color:var(--gold);opacity:0.3">FOTO</div>
-      </div>
-      <div class="about-text">
-        <h2 class="section-title reveal" data-lang="es">Una vida dedicada a la alquimia</h2>
-        <h2 class="section-title reveal" data-lang="en">A life devoted to alchemy</h2>
-        <div id="bio-texto-es" class="reveal"></div>
-      </div>
-    </div>
-  </div>
+  <div class="section-inner">
+    <div class="about-grid">
+      <div class="about-portrait reveal">
+        <div class="portrait-frame">
+          <div class="portrait-placeholder" id="portrait-placeholder-box"><span>Foto del artista</span></div>
+          <img id="portrait-img" src="" alt="Lcdo. Rolando Ordóñez" style="display:none;width:100%;height:100%;object-fit:cover">
+        </div>
+      </div>
+      <div class="about-text">
+        <p class="section-label reveal"><span data-lang="es">El Artista</span><span data-lang="en">The Artist</span></p>
+        <h2 class="section-title reveal" data-lang="es">Una vida dedicada a la alquimia</h2>
+        <div class="section-divider reveal"></div>
+        <div id="bio-texto-es" class="reveal"></div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section id="gallery">
-  <div class="section-inner">
-    <h2 class="section-title" data-lang="es">Galería de Obras</h2>
-    <h2 class="section-title" data-lang="en">Art Gallery</h2>
-    <div class="gallery-grid" id="galleryGrid">
-        <div id="gallery-empty" style="grid-column:1/-1; text-align:center; padding:50px; opacity:0.3">Cargando obras...</div>
-    </div>
-  </div>
+  <div class="section-inner">
+    <h2 class="section-title reveal" data-lang="es">Obras del Artista</h2>
+    <div class="gallery-grid" id="galleryGrid">
+      <div id="gallery-empty" style="grid-column:1/-1;text-align:center;padding:60px;opacity:0.3">🖼️ Cargando galería...</div>
+    </div>
+  </div>
 </section>
 
-<div id="admin-trigger" onclick="showAdminLogin()" style="position:fixed;bottom:20px;left:20px;opacity:0.1;cursor:pointer;z-index:1000">⚙️</div>
+<section id="contact">
+  <div class="section-inner">
+    <h2 class="section-title reveal" data-lang="es">Hablemos de Arte</h2>
+    <div class="contact-grid">
+      <div class="contact-info reveal">
+        <p data-lang="es">Para adquirir una obra, comuníquese directamente.</p>
+        <div class="contact-links">
+          <a href="#" target="_blank" class="contact-link">WhatsApp</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-<div id="admin-panel">
-    <div style="padding:20px; background:#1a1710; border-bottom:1px solid var(--gold)">
-        <h3 style="color:var(--gold)">Panel Control</h3>
-        <button onclick="cerrarSesion()" style="margin-top:10px">Salir</button>
-    </div>
-    <div style="padding:20px">
-        <label>Nueva Obra:</label>
-        <input type="file" id="file-obra" onchange="subirNuevaObraDirecto(this)">
-        <div id="admin-obras-lista" style="margin-top:20px"></div>
-    </div>
+<footer>
+  <div class="footer-logo">Arte Alquímico</div>
+</footer>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close">✕</button>
+  <img class="lightbox-img" id="lightboxImg">
 </div>
 
-<div class="lightbox" id="lightbox" onclick="this.classList.remove('open')">
-  <img class="lightbox-img" id="lightboxImg">
+<div id="admin-trigger" onclick="showAdminLogin()" style="position:fixed;bottom:20px;left:20px;opacity:0.1;cursor:pointer">⚙️</div>
+
+<div id="admin-panel" style="display:none;position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);background:#0f0d0a;z-index:5000;padding:20px;overflow-y:auto;border-left:1px solid var(--gold)">
+  <h3 style="color:var(--gold)">Panel de Control</h3>
+  <hr style="opacity:0.1;margin:15px 0">
+  <label>Nueva Obra (Seleccionar Imagen):</label>
+  <input type="file" id="file-obra" onchange="previewObraAdmin(this)" style="margin-top:10px;color:#fff">
+  <div id="preview-obra-box" style="display:none;margin-top:10px">
+    <img id="preview-obra-img" style="width:100%;max-height:150px;object-fit:cover">
+    <input type="text" id="obra-titulo" placeholder="Título" style="width:100%;margin-top:10px;padding:8px">
+    <button onclick="guardarObra()" style="width:100%;margin-top:10px;padding:10px;background:var(--gold);border:none;cursor:pointer">Publicar</button>
+  </div>
+  <hr style="opacity:0.1;margin:20px 0">
+  <div id="admin-obras-lista"></div>
+  <button onclick="cerrarSesion()" style="width:100%;margin-top:30px;background:#333;color:#fff;border:none;padding:10px;cursor:pointer">Cerrar Sesión</button>
 </div>
 
 <script>
-// --- Lógica de Interfaz ---
+// --- Lógica Interfaz ---
 function setLang(l) {
-  document.body.classList.toggle('lang-en', l === 'en');
-  document.getElementById('btn-es').classList.toggle('active', l === 'es');
-  document.getElementById('btn-en').classList.toggle('active', l === 'en');
+  document.body.classList.toggle('lang-en', l === 'en');
+  localStorage.setItem('lang', l);
 }
 
-function renderObra(obra) {
-  const grid = document.getElementById('galleryGrid');
-  const item = document.createElement('div');
-  item.className = 'gallery-item reveal visible';
-  item.dataset.obraId = obra.id;
-  
-  const statusColor = obra.estado === 'vendida' ? '#f06060' : '#5dde8a';
-  const statusText = obra.estado === 'vendida' ? 'VENDIDA' : 'DISPONIBLE';
-
-  item.innerHTML = `
-    <div style="position:absolute; top:10px; left:10px; background:${statusColor}; color:#000; font-size:9px; padding:3px 8px; z-index:5">${statusText}</div>
-    <div class="admin-btns" style="display:none; position:absolute; top:10px; right:10px; z-index:10">
-        <button onclick="borrarObraConfirm(${obra.id})" style="background:#ef4444; border:none; color:#fff; padding:5px; cursor:pointer">🗑️</button>
-    </div>
-    <img src="${obra.src}" class="gallery-img" onclick="openLightbox('${obra.src}')">
-    <div style="padding:15px; background:#1a1710">
-        <h4 style="color:var(--gold-light)">${obra.titulo}</h4>
-        <p style="font-size:18px; margin-top:5px">${obra.precio || 'Consultar'}</p>
-    </div>
-  `;
-  grid.appendChild(item);
-}
+function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
 
 function openLightbox(src) {
-  const lb = document.getElementById('lightbox');
-  document.getElementById('lightboxImg').src = src;
-  lb.classList.add('open');
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+
+// --- SOURCE OF TRUTH ---
+const OBRAS_KEY = 'artealq_obras';
+function loadObras() { return JSON.parse(localStorage.getItem(OBRAS_KEY) || "[]"); }
+function saveObras(o) { localStorage.setItem(OBRAS_KEY, JSON.stringify(o)); }
+
+function renderObra(obra) {
+  const grid = document.getElementById('galleryGrid');
+  if(!grid) return;
+  const el = document.createElement('div');
+  el.className = 'gallery-item reveal visible';
+  el.dataset.obraId = obra.id;
+  el.innerHTML = `
+    <div class="admin-btns" style="display:${window.adminActivo ? 'flex' : 'none'};position:absolute;top:10px;right:10px;z-index:10;gap:5px">
+      <button onclick="eliminarObraConfirm(${obra.id})" style="background:#ef4444;border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer">🗑️</button>
+    </div>
+    <img class="gallery-img" src="${obra.src}" onclick="openLightbox('${obra.src}')">
+    <div style="padding:15px;background:var(--ink3)">
+      <p style="color:var(--gold-light);font-family:Cinzel,serif">${obra.titulo}</p>
+      <p style="color:var(--gold);margin-top:5px">${obra.precio || 'Consultar'}</p>
+    </div>
+  `;
+  grid.appendChild(el);
 }
 
 function actualizarEmptyState() {
-    const grid = document.getElementById('galleryGrid');
-    const empty = document.getElementById('gallery-empty');
-    if (grid.children.length > 1) empty.style.display = 'none';
-    else empty.style.display = 'block';
+  const grid = document.getElementById('galleryGrid');
+  const empty = document.getElementById('gallery-empty');
+  if (grid.children.length > 1) empty.style.display = 'none';
+  else empty.style.display = 'block';
 }
 
 function aplicarConfigFirebase(cfg) {
-  if (cfg.perfilFoto) {
-    const img = document.getElementById('portrait-img');
-    img.src = cfg.perfilFoto;
-    img.style.display = 'block';
-    document.getElementById('portrait-placeholder').style.display = 'none';
-  }
-  if (cfg.bioTexto) document.getElementById('bio-texto-es').innerText = cfg.bioTexto;
+  if(cfg.perfilFoto) {
+    document.getElementById('portrait-img').src = cfg.perfilFoto;
+    document.getElementById('portrait-img').style.display = 'block';
+    document.getElementById('portrait-placeholder-box').style.display = 'none';
+  }
+  if(cfg.bioTexto) document.getElementById('bio-texto-es').textContent = cfg.bioTexto;
 }
 
 // --- Admin Actions ---
 window.adminActivo = false;
 function showAdminLogin() {
-    const pass = prompt("Contraseña de administrador:");
-    if (pass === "alquimia2025") {
-        window.adminActivo = true;
-        document.getElementById('admin-panel').style.display = 'block';
-        mostrarBotonesAdmin(true);
-    }
+  const p = prompt("Contraseña:");
+  if(p === "alquimia2025") {
+    window.adminActivo = true;
+    document.getElementById('admin-panel').style.display = 'block';
+    mostrarBotonesAdmin(true);
+    renderAdminLista();
+  }
 }
 
 function mostrarBotonesAdmin(show) {
-    document.querySelectorAll('.admin-btns').forEach(b => b.style.display = show ? 'block' : 'none');
+  document.querySelectorAll('.admin-btns').forEach(b => b.style.display = show ? 'flex' : 'none');
 }
 
-async function subirNuevaObraDirecto(input) {
-    const file = input.files[0];
-    if (!file) return;
-    const titulo = prompt("Título de la obra:");
-    if (!titulo) return;
-    
-    try {
-        const url = await window.fbUploadImage(file);
-        const obra = { id: Date.now(), titulo, src: url, estado: 'stock', precio: 'Consultar' };
-        await window.fbGuardarObra(obra);
-        alert("¡Obra publicada!");
-    } catch(e) { alert("Error al subir"); }
+let fotoObraTmp = null;
+function previewObraAdmin(input) {
+  const f = input.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    fotoObraTmp = e.target.result;
+    document.getElementById('preview-obra-img').src = fotoObraTmp;
+    document.getElementById('preview-obra-box').style.display = 'block';
+  };
+  reader.readAsDataURL(f);
 }
 
-function borrarObraConfirm(id) {
-    if (confirm("¿Seguro que quieres borrar esta obra de todos los dispositivos?")) {
-        window.fbEliminarObra(id);
-    }
+async function guardarObra() {
+  const t = document.getElementById('obra-titulo').value;
+  const file = document.getElementById('file-obra').files[0];
+  if(!t || !file) return alert("Faltan datos");
+  
+  try {
+    const url = await window.fbUploadImage(file);
+    const obra = { id: Date.now(), titulo: t, src: url, precio: 'Consultar', estado: 'stock' };
+    await window.fbGuardarObra(obra);
+    document.getElementById('preview-obra-box').style.display = 'none';
+    document.getElementById('obra-titulo').value = '';
+    renderAdminLista();
+  } catch(e) { alert("Error"); }
+}
+
+function renderAdminLista() {
+  const obras = loadObras();
+  document.getElementById('admin-obras-lista').innerHTML = obras.map(o => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:5px">
+      <img src="${o.src}" style="width:40px;height:40px;object-fit:cover">
+      <span style="flex:1;font-size:12px;color:#fff">${o.titulo}</span>
+      <button onclick="eliminarObraConfirm(${o.id})" style="background:red;border:none;color:#fff;padding:5px">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function eliminarObraConfirm(id) {
+  if(confirm("¿Eliminar obra en todos los dispositivos?")) {
+    window.fbEliminarObra(id); 
+    // El onSnapshot se encargará de borrarlo del DOM y del LocalStorage
+  }
 }
 
 function cerrarSesion() {
-    window.adminActivo = false;
-    document.getElementById('admin-panel').style.display = 'none';
-    mostrarBotonesAdmin(false);
+  window.adminActivo = false;
+  document.getElementById('admin-panel').style.display = 'none';
+  mostrarBotonesAdmin(false);
 }
 
 // Reveal Observer
-const obs = new IntersectionObserver(entries => {
-  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+const _obs = new IntersectionObserver(e => {
+  e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); });
 }, { threshold: 0.1 });
-document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+document.querySelectorAll('.reveal').forEach(el => _obs.observe(el));
 </script>
 </body>
 </html>
