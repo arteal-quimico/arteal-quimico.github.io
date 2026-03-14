@@ -1136,21 +1136,33 @@ body.lang-en span[data-lang="es"] { display: none; }
 
       // Luego escuchar cambios individuales (sin borrar todo)
       onSnapshot(collection(db, 'obras'), function(snap) {
-        snap.docChanges().forEach(function(change) {
+        // Primero removed/modified, luego added — evita duplicados
+        var cambios = snap.docChanges();
+
+        cambios.forEach(function(change) {
           var obra = change.doc.data();
           var el = document.querySelector('[data-obra-id="' + obra.id + '"]');
-          if (change.type === 'added' && !el) {
+          if (change.type === 'removed') {
+            if (el) {
+              el.style.opacity = '0';
+              el.style.transition = 'opacity 0.4s';
+              setTimeout(function() { if (el.parentNode) el.remove(); actualizarEmptyState(); }, 400);
+            }
+          } else if (change.type === 'modified') {
+            if (el) el.remove();
             renderObra(obra);
-            actualizarEmptyState();
             if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
-          } else if (change.type === 'modified' && el) {
-            el.remove();
-            renderObra(obra);
-            if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
-          } else if (change.type === 'removed' && el) {
-            el.style.opacity = '0';
-            el.style.transition = 'opacity 0.4s';
-            setTimeout(function() { if (el.parentNode) el.remove(); actualizarEmptyState(); }, 400);
+          }
+        });
+
+        cambios.forEach(function(change) {
+          if (change.type === 'added') {
+            var obra = change.doc.data();
+            var el = document.querySelector('[data-obra-id="' + obra.id + '"]');
+            if (!el) {
+              renderObra(obra);
+              if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
+            }
           }
         });
       });
