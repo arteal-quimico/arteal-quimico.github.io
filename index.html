@@ -1115,76 +1115,33 @@ body.lang-en span[data-lang="es"] { display: none; }
   };
 
   // ─── Inicializar con tiempo real (onSnapshot) ────────
-  window.fbInit = async function() {
-    try {
-      // Cargar config una vez
-      const cfg = await window.fbCargarConfig();
-      if (cfg && Object.keys(cfg).length) {
-        window._fbConfig = cfg;
-        aplicarConfigFirebase(cfg);
+  window.fbInit = function() {
+
+    // Escuchar config en tiempo real
+    onSnapshot(doc(db, 'config', 'principal'), function(snap) {
+      if (snap.exists()) aplicarConfigFirebase(snap.data());
+    }, function(err) { console.log('Config err:', err); });
+
+    // Escuchar obras en tiempo real — recarga galería completa en cada cambio
+    onSnapshot(collection(db, 'obras'), function(snap) {
+      var grid = document.getElementById('galleryGrid');
+      if (grid) {
+        grid.querySelectorAll('.gallery-item').forEach(function(el) { el.remove(); });
       }
-
-      // Escuchar cambios en config en tiempo real
-      onSnapshot(doc(db, 'config', 'principal'), function(snap) {
-        if (snap.exists()) {
-          aplicarConfigFirebase(snap.data());
-        }
-      });
-
-      // Escuchar cambios en obras en tiempo real
-      window._fbRatings = await window.fbCargarRatings();
-
-      // Usar onSnapshot como ÚNICA fuente — evita duplicados
-      var primerasCarga = true;
-
-      var _primeraVez = true;
-
-      onSnapshot(collection(db, 'obras'), function(snap) {
-        if (_primeraVez) {
-          _primeraVez = false;
-          // Limpiar DOM completamente antes de cargar
-          document.querySelectorAll('.gallery-item').forEach(function(el) { el.remove(); });
-          var todas = [];
-          snap.forEach(function(d) { todas.push(d.data()); });
-          todas.sort(function(a,b) { return (a.orden||a.id)-(b.orden||b.id); });
-          todas.forEach(function(o) { renderObra(o); });
-          actualizarEmptyState();
-          if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 300);
-          return;
-        }
-        // Solo cambios posteriores
-        snap.docChanges().forEach(function(change) {
-          var obra = change.doc.data();
-          var elEx = document.querySelector('[data-obra-id="'+obra.id+'"]');
-          if (change.type === 'added') {
-            // Solo renderizar si NO está ya en el DOM (evita duplicados)
-            if (!elEx) {
-              renderObra(obra);
-              if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
-            }
-          } else if (change.type === 'modified') {
-            // Siempre eliminar y volver a renderizar al editar
-            var toRemove = document.querySelectorAll('[data-obra-id="' + obra.id + '"]');
-            toRemove.forEach(function(el) { el.remove(); });
-            renderObra(obra);
-            if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
-          } else if (change.type === 'removed' && elEx) {
-            elEx.style.transition = 'opacity 0.4s';
-            elEx.style.opacity = '0';
-            setTimeout(function() { if (elEx.parentNode) elEx.remove(); actualizarEmptyState(); }, 400);
-          }
-        });
-        actualizarEmptyState();
-      });;
-
-    } catch(e) {
-      console.log('Firebase offline, usando localStorage:', e);
+      var obras = [];
+      snap.forEach(function(d) { obras.push(d.data()); });
+      obras.sort(function(a,b) { return (a.orden||a.id) - (b.orden||b.id); });
+      obras.forEach(function(o) { renderObra(o); });
+      actualizarEmptyState();
+      if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
+    }, function(err) {
+      console.log('Obras Firebase err, usando localStorage:', err);
       loadObras().forEach(function(o) { renderObra(o); });
       actualizarEmptyState();
-    }
+    });
   };
 
-  // Llamar init cuando el DOM esté listo
+    // Llamar init cuando el DOM esté listo
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { window.fbInit(); });
   } else {
