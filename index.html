@@ -1692,9 +1692,12 @@ function volverPanel() {
   if (panel) panel.style.display = 'block'; if (overlay) overlay.style.display = 'block'; if (btnVolver) btnVolver.style.display = 'none';
 }
 function cerrarSesion() {
-  if (!confirm('¿Cerrar sesión? La página se recargará para aplicar todos los cambios.')) return;
-  // Recargar la página — esto limpia el DOM y Firebase carga el estado correcto
-  location.reload();
+  if (!confirm('¿Cerrar sesión de administrador?')) return;
+  closeAdmin();
+  adminActivo = false;
+  mostrarBotonesAdmin(false);
+  var btnVolver = document.getElementById('btn-volver-panel');
+  if (btnVolver) btnVolver.style.display = 'none';
 }
 function toggleVerPass(inputId, btn) {
   var input = document.getElementById(inputId); if (!input) return;
