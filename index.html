@@ -2644,10 +2644,12 @@ function aplicarConfigFirebase(cfg) {
 }
 
 (function initConfig() {
-  // Firebase se inicializa por separado via fbInit()
-  // Aquí solo aplicamos localStorage como fallback inmediato
+  // Solo aplicar config visual (textos, links) desde localStorage
+  // Las OBRAS solo vienen de Firebase (evita duplicados)
   var cfg = loadConfig();
   aplicarConfigFirebase(cfg);
+  // Limpiar obras del localStorage para evitar duplicados con Firebase
+  localStorage.removeItem('artealq_obras');
 })();
 
 // ════════════════════════════════════
@@ -3168,12 +3170,7 @@ function guardarObra() {
     // Guardar en Firebase
     var guardarEnFirebase = window.fbGuardarObra ? window.fbGuardarObra(obra) : Promise.resolve();
     guardarEnFirebase.then(function() {
-      // También guardar en localStorage como backup
-      var obras = loadObras();
-      obras.push(obra);
-      saveObras(obras);
-      renderObra(obra);
-      actualizarEmptyState();
+      // Firebase onSnapshot se encarga de renderizar automáticamente
       renderAdminLista();
       var fields = ['obra-titulo', 'obra-desc', 'obra-precio'];
       fields.forEach(function(f) { var el = document.getElementById(f); if (el) el.value = ''; });
@@ -3183,7 +3180,14 @@ function guardarObra() {
       mostrarMsg('msg-obra', '✅ Obra publicada en todos los dispositivos!');
     }).catch(function(e) {
       console.error(e);
-      mostrarMsg('msg-obra', '✅ Obra guardada localmente!');
+      // Fallback: solo si Firebase falla, guardar local y renderizar manual
+      var obras = loadObras();
+      obras.push(obra);
+      saveObras(obras);
+      renderObra(obra);
+      actualizarEmptyState();
+      renderAdminLista();
+      mostrarMsg('msg-obra', '✅ Obra guardada!');
     });
   }).catch(function(e) {
     console.error(e);
@@ -3247,13 +3251,36 @@ function eliminarObraDirecto(id) {
 }
 
 function eliminarObra(id) {
-  saveObras(loadObras().filter(function(o) { return o.id !== id; }));
-  var el = document.querySelector('[data-obra-id="' + id + '"]');
-  if (el) el.remove();
-  actualizarEmptyState();
-  renderAdminLista();
+  // 1. Primero guardar en Firebase
+  var hacerEliminar = function() {
+    // Actualizar localStorage
+    saveObras(loadObras().filter(function(o) { return o.id !== id; }));
+    // Quitar del DOM
+    var el = document.querySelector('[data-obra-id="' + id + '"]');
+    if (el) {
+      el.style.transition = 'opacity 0.3s';
+      el.style.opacity = '0';
+      setTimeout(function() { if (el.parentNode) el.remove(); actualizarEmptyState(); }, 300);
+    }
+    renderAdminLista();
+  };
+
   if (window.fbEliminarObra) {
-    window.fbEliminarObra(id).catch(function(e) { console.error(e); });
+    // Mostrar indicador
+    var el = document.querySelector('[data-obra-id="' + id + '"]');
+    if (el) {
+      el.style.opacity = '0.4';
+      el.style.pointerEvents = 'none';
+    }
+    window.fbEliminarObra(id).then(function() {
+      hacerEliminar();
+    }).catch(function(e) {
+      console.error(e);
+      // Si Firebase falla, igual eliminar localmente
+      hacerEliminar();
+    });
+  } else {
+    hacerEliminar();
   }
 }
 
@@ -3461,14 +3488,25 @@ function guardarEdicionObra() {
   obras[idx].precio = getVal('edit-precio') || 'Consultar';
   var estadoEl = document.getElementById('edit-estado'); if (estadoEl) obras[idx].estado = estadoEl.value;
   var catEl = document.getElementById('edit-categoria'); if (catEl) obras[idx].categoria = catEl.value;
-  saveObras(obras);
   var obraEditada = obras[idx];
-  var el = document.querySelector('[data-obra-id="' + editandoObraId + '"]');
-  if (el) { el.remove(); renderObra(obraEditada); }
-  renderAdminLista();
   cerrarEditarObra();
   if (window.fbActualizarObra) {
-    window.fbActualizarObra(editandoObraId, obraEditada).catch(function(e) { console.error(e); });
+    // Firebase onSnapshot actualiza el DOM automáticamente en todos los dispositivos
+    window.fbActualizarObra(editandoObraId, obraEditada).then(function() {
+      renderAdminLista();
+    }).catch(function(e) {
+      console.error(e);
+      // Fallback
+      saveObras(obras);
+      var el = document.querySelector('[data-obra-id="' + editandoObraId + '"]');
+      if (el) { el.remove(); renderObra(obraEditada); }
+      renderAdminLista();
+    });
+  } else {
+    saveObras(obras);
+    var el = document.querySelector('[data-obra-id="' + editandoObraId + '"]');
+    if (el) { el.remove(); renderObra(obraEditada); }
+    renderAdminLista();
   }
 }
 
