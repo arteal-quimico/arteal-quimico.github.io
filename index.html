@@ -1040,7 +1040,7 @@ body.lang-en span[data-lang="es"] { display: none; }
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBjUdBpwW6g6zZ5jC5c_AyUwClUy79sc6Y",
@@ -1112,32 +1112,78 @@ body.lang-en span[data-lang="es"] { display: none; }
     return result;
   };
 
-  // ─── Inicializar página con datos de Firebase ────────
+  // ─── Inicializar con tiempo real (onSnapshot) ────────
   window.fbInit = async function() {
     try {
-      // Cargar config
+      // Cargar config una vez
       const cfg = await window.fbCargarConfig();
       if (cfg && Object.keys(cfg).length) {
         window._fbConfig = cfg;
         aplicarConfigFirebase(cfg);
       }
-      // Cargar obras
-      const obras = await window.fbCargarObras();
+
+      // Escuchar cambios en config en tiempo real
+      onSnapshot(doc(db, 'config', 'principal'), function(snap) {
+        if (snap.exists()) {
+          aplicarConfigFirebase(snap.data());
+        }
+      });
+
+      // Escuchar cambios en obras en tiempo real
       window._fbRatings = await window.fbCargarRatings();
-      obras.sort((a,b) => (a.orden||a.id) - (b.orden||b.id));
-      obras.forEach(o => renderObra(o));
-      actualizarEmptyState();
+
+      onSnapshot(collection(db, 'obras'), function(snap) {
+        // Obtener estado actual del DOM
+        const obrasDom = {};
+        document.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(el) {
+          obrasDom[el.dataset.obraId] = el;
+        });
+
+        snap.docChanges().forEach(function(change) {
+          const obra = change.doc.data();
+          const elExistente = document.querySelector('[data-obra-id="' + obra.id + '"]');
+
+          if (change.type === 'added') {
+            // Solo agregar si no existe ya en el DOM
+            if (!elExistente) {
+              renderObra(obra);
+            }
+          } else if (change.type === 'modified') {
+            // Actualizar obra existente
+            if (elExistente) {
+              elExistente.remove();
+            }
+            renderObra(obra);
+          } else if (change.type === 'removed') {
+            // Eliminar del DOM
+            if (elExistente) {
+              elExistente.style.transition = 'opacity 0.4s';
+              elExistente.style.opacity = '0';
+              setTimeout(function() {
+                if (elExistente.parentNode) elExistente.remove();
+                actualizarEmptyState();
+              }, 400);
+            }
+          }
+        });
+
+        actualizarEmptyState();
+        // Si el admin está activo, mostrar botones en obras nuevas
+        if (adminActivo) {
+          setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
+        }
+      });
+
     } catch(e) {
       console.log('Firebase offline, usando localStorage:', e);
-      // Fallback a localStorage
-      loadObras().forEach(o => renderObra(o));
+      loadObras().forEach(function(o) { renderObra(o); });
       actualizarEmptyState();
     }
   };
 
   // Llamar init cuando el DOM esté listo
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => window.fbInit());
+    document.addEventListener('DOMContentLoaded', function() { window.fbInit(); });
   } else {
     window.fbInit();
   }
