@@ -244,6 +244,12 @@ body.lang-en span[data-lang="es"] { display: none; }
   };
 
   window.fbEliminarObra = async function(id) {
+    // Guardar en lista negra ANTES de borrar, para que onSnapshot no la vuelva a renderizar
+    try {
+      var borradas = JSON.parse(sessionStorage.getItem('obras_borradas') || '[]');
+      if (borradas.indexOf(String(id)) === -1) borradas.push(String(id));
+      sessionStorage.setItem('obras_borradas', JSON.stringify(borradas));
+    } catch(e) {}
     await deleteDoc(doc(db, 'obras', String(id)));
   };
 
@@ -320,8 +326,14 @@ body.lang-en span[data-lang="es"] { display: none; }
             });
           }
           // Renderizar exactamente lo que Firebase tiene
+          // Filtrar obras que fueron borradas en esta sesión
+          var borradas = [];
+          try { borradas = JSON.parse(sessionStorage.getItem('obras_borradas') || '[]'); } catch(e) {}
           snap.docs.forEach(function(docSnap) {
-            renderObra(docSnap.data());
+            var obraData = docSnap.data();
+            if (borradas.indexOf(String(obraData.id)) === -1) {
+              renderObra(obraData);
+            }
           });
           actualizarEmptyState();
           if (adminActivo) {
@@ -336,7 +348,10 @@ body.lang-en span[data-lang="es"] { display: none; }
           const elExistente = document.querySelector('[data-obra-id="' + obra.id + '"]');
 
           if (change.type === 'added') {
-            if (!elExistente) {
+            // Verificar que no está en la lista negra de obras borradas en esta sesión
+            var borradas = [];
+            try { borradas = JSON.parse(sessionStorage.getItem('obras_borradas') || '[]'); } catch(e) {}
+            if (!elExistente && borradas.indexOf(String(obra.id)) === -1) {
               renderObra(obra);
             }
           } else if (change.type === 'modified') {
@@ -1561,9 +1576,9 @@ function volverPanel() {
   if (panel) panel.style.display = 'block'; if (overlay) overlay.style.display = 'block'; if (btnVolver) btnVolver.style.display = 'none';
 }
 function cerrarSesion() {
-  if (!confirm('¿Cerrar sesión de administrador?')) return;
-  closeAdmin(); adminActivo = false; mostrarBotonesAdmin(false);
-  var btnVolver = document.getElementById('btn-volver-panel'); if (btnVolver) btnVolver.style.display = 'none';
+  if (!confirm('¿Cerrar sesión? La página se recargará para aplicar todos los cambios.')) return;
+  // Recargar la página — esto limpia el DOM y Firebase carga el estado correcto
+  location.reload();
 }
 function toggleVerPass(inputId, btn) {
   var input = document.getElementById(inputId); if (!input) return;
