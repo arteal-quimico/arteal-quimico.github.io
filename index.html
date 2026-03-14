@@ -1654,7 +1654,7 @@ body.lang-en span[data-lang="es"] { display: none; }
           </a>
 
           <!-- TikTok -->
-          <a href="https://www.tiktok.com/@artealquimico" target="_blank" class="contact-link">
+          <a href="https://www.tiktok.com/@artealquimico" target="_blank" id="ig-tiktok-link" class="contact-link">
             <div class="contact-link-icon">
               <svg viewBox="0 0 24 24" fill="currentColor" style="width:20px;height:20px">
                 <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/>
@@ -2467,6 +2467,22 @@ body.lang-en span[data-lang="es"] { display: none; }
                onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
       </div>
 
+      <div>
+        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                      letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
+          🎵 TIKTOK (link completo)</label>
+        <p style="font-size:12px;color:#f5f0e8;opacity:0.4;margin-bottom:6px;line-height:1.5">
+          Copia el link de tu perfil de TikTok<br>
+          <em>Ej: https://www.tiktok.com/@artealquimico</em></p>
+        <input type="url" id="ed-tiktok"
+               style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                      color:#f5f0e8;font-size:14px;padding:11px 13px;outline:none;
+                      font-family:'EB Garamond',serif;box-sizing:border-box"
+               placeholder="https://www.tiktok.com/@artealquimico"
+               onfocus="this.style.borderColor='#c9a84c'"
+               onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+      </div>
+
       <button onclick="guardarContacto()"
               style="width:100%;font-family:'Cinzel',serif;font-size:11px;
                      letter-spacing:3px;text-transform:uppercase;padding:15px;
@@ -2658,6 +2674,10 @@ function aplicarConfigFirebase(cfg) {
   }
   if (cfg.facebook) document.querySelectorAll('a[href*="facebook.com/artealquimico"]').forEach(function(a) { a.href = cfg.facebook; });
   if (cfg.instagram) document.querySelectorAll('a[href*="instagram.com/artealquimico"]').forEach(function(a) { a.href = cfg.instagram; });
+  if (cfg.tiktok) {
+    var ttLink = document.getElementById('ig-tiktok-link');
+    if (ttLink) ttLink.href = cfg.tiktok;
+  }
   if (cfg.taglineEs) document.querySelectorAll('.hero-tagline[data-lang="es"]').forEach(function(el) { el.textContent = cfg.taglineEs; });
   if (cfg.taglineEn) document.querySelectorAll('.hero-tagline[data-lang="en"]').forEach(function(el) { el.textContent = cfg.taglineEn; });
   if (cfg.perfilFoto) {
@@ -2965,7 +2985,7 @@ function openAdmin() {
   var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
   setVal('ed-whatsapp', cfg.whatsapp);
   setVal('ed-facebook', cfg.facebook || 'https://www.facebook.com/artealquimico');
-  setVal('ed-instagram', cfg.instagram || 'https://www.instagram.com/artealquimico');
+  setVal('ed-instagram', cfg.instagram || 'https://www.instagram.com/artealquimico'); setVal('ed-tiktok', cfg.tiktok || '');
   setVal('perfil-nombre', cfg.cardNombre || 'Lcdo. Rolando Ordóñez Segovia');
   setVal('perfil-subtitulo', cfg.cardSubtitulo || 'Artista Plástico · Ecuador');
   setVal('perfil-bio', cfg.bioTexto || '');
@@ -3327,7 +3347,7 @@ function guardarContacto() {
   var getVal = function(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
   cfg.whatsapp = getVal('ed-whatsapp');
   cfg.facebook = getVal('ed-facebook');
-  cfg.instagram = getVal('ed-instagram');
+  cfg.instagram = getVal('ed-instagram'); cfg.tiktok = getVal('ed-tiktok');
   saveConfig(cfg);
   if (window.fbGuardarConfig) {
     window.fbGuardarConfig(cfg).then(function() {
