@@ -3023,12 +3023,21 @@ function toggleEstadoObra(id) {
 }
 
 function eliminarObra(id) {
-  if (!confirm('¿Eliminar esta obra de la galería?')) return;
+  // Quitar del localStorage
   saveObras(loadObras().filter(function(o) { return o.id !== id; }));
+  // Quitar del DOM local inmediatamente
   var el = document.querySelector('[data-obra-id="' + id + '"]');
   if (el) el.remove();
   actualizarEmptyState();
   renderAdminLista();
+  // Eliminar en Firebase → onSnapshot propaga el cambio a TODOS los dispositivos
+  if (window.fbEliminarObra) {
+    window.fbEliminarObra(id).then(function() {
+      console.log('Obra eliminada de Firebase:', id);
+    }).catch(function(e) {
+      console.error('Error eliminando de Firebase:', e);
+    });
+  }
 }
 
 // ════════════════════════════════════
