@@ -1036,36 +1036,220 @@ body.lang-en span[data-lang="es"] { display: none; }
   }
 }
 </style>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBjUdBpwW6g6zZ5jC5c_AyUwClUy79sc6Y",
+    authDomain: "artealquimico-1e583.firebaseapp.com",
+    projectId: "artealquimico-1e583",
+    storageBucket: "artealquimico-1e583.firebasestorage.app",
+    messagingSenderId: "665117901237",
+    appId: "1:665117901237:web:21ecaa03595d30992fd9fc"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ─── Cloudinary config ───────────────────────────────
+  const CLOUD_NAME = 'dwzqne2ll';
+  const UPLOAD_PRESET = 'artealquimico';
+
+  // ─── Exponer funciones globalmente ──────────────────
+  window.fbUploadImage = async function(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+    formData.append('folder', 'artealquimico');
+    const res = await fetch('https://api.cloudinary.com/v1_1/' + CLOUD_NAME + '/image/upload', {
+      method: 'POST', body: formData
+    });
+    const data = await res.json();
+    return data.secure_url;
+  };
+
+  window.fbGuardarObra = async function(obra) {
+    await setDoc(doc(db, 'obras', String(obra.id)), obra);
+  };
+
+  window.fbEliminarObra = async function(id) {
+    await deleteDoc(doc(db, 'obras', String(id)));
+  };
+
+  window.fbActualizarObra = async function(id, datos) {
+    await updateDoc(doc(db, 'obras', String(id)), datos);
+  };
+
+  window.fbCargarObras = async function() {
+    const snap = await getDocs(collection(db, 'obras'));
+    return snap.docs.map(d => d.data());
+  };
+
+  window.fbGuardarConfig = async function(cfg) {
+    await setDoc(doc(db, 'config', 'principal'), cfg);
+  };
+
+  window.fbCargarConfig = async function() {
+    const snap = await getDoc(doc(db, 'config', 'principal'));
+    return snap.exists() ? snap.data() : {};
+  };
+
+  window.fbGuardarRating = async function(obraId, rating) {
+    await addDoc(collection(db, 'ratings'), { obraId, ...rating });
+  };
+
+  window.fbCargarRatings = async function() {
+    const snap = await getDocs(collection(db, 'ratings'));
+    const result = {};
+    snap.docs.forEach(d => {
+      const r = d.data();
+      if (!result[r.obraId]) result[r.obraId] = [];
+      result[r.obraId].push(r);
+    });
+    return result;
+  };
+
+  // ─── Inicializar con tiempo real (onSnapshot) ────────
+  window.fbInit = async function() {
+    try {
+      // Cargar config una vez
+      const cfg = await window.fbCargarConfig();
+      if (cfg && Object.keys(cfg).length) {
+        window._fbConfig = cfg;
+        aplicarConfigFirebase(cfg);
+      }
+
+      // Escuchar cambios en config en tiempo real
+      onSnapshot(doc(db, 'config', 'principal'), function(snap) {
+        if (snap.exists()) {
+          aplicarConfigFirebase(snap.data());
+        }
+      });
+
+      // Escuchar cambios en obras en tiempo real
+      window._fbRatings = await window.fbCargarRatings();
+
+      onSnapshot(collection(db, 'obras'), function(snap) {
+        // Obtener estado actual del DOM
+        const obrasDom = {};
+        document.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(el) {
+          obrasDom[el.dataset.obraId] = el;
+        });
+
+        snap.docChanges().forEach(function(change) {
+          const obra = change.doc.data();
+          const elExistente = document.querySelector('[data-obra-id="' + obra.id + '"]');
+
+          if (change.type === 'added') {
+            // Solo agregar si no existe ya en el DOM
+            if (!elExistente) {
+              renderObra(obra);
+            }
+          } else if (change.type === 'modified') {
+            // Actualizar obra existente
+            if (elExistente) {
+              elExistente.remove();
+            }
+            renderObra(obra);
+          } else if (change.type === 'removed') {
+            // Eliminar del DOM
+            if (elExistente) {
+              elExistente.style.transition = 'opacity 0.4s';
+              elExistente.style.opacity = '0';
+              setTimeout(function() {
+                if (elExistente.parentNode) elExistente.remove();
+                actualizarEmptyState();
+              }, 400);
+            }
+          }
+        });
+
+        actualizarEmptyState();
+        // Si el admin está activo, mostrar botones en obras nuevas
+        if (adminActivo) {
+          setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
+        }
+      });
+
+    } catch(e) {
+      console.log('Firebase offline, usando localStorage:', e);
+      loadObras().forEach(function(o) { renderObra(o); });
+      actualizarEmptyState();
+    }
+  };
+
+  // Llamar init cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { window.fbInit(); });
+  } else {
+    window.fbInit();
+  }
+</script>
 </head>
-
 <body>
-
-<!-- Language Toggle -->
-<div class="lang-toggle">
-  <button class="lang-btn active" onclick="setLang('es')" id="btn-es">ES</button>
-  <button class="lang-btn" onclick="setLang('en')" id="btn-en">EN</button>
-</div>
 
 <!-- Navigation -->
 <nav id="navbar">
-  <a href="#hero" class="nav-logo">Arte Alquímico</a>
-  <ul class="nav-links">
-    <li><a href="#about"><span data-lang="es">Historia</span><span data-lang="en">Story</span></a></li>
-    <li><a href="#gallery"><span data-lang="es">Obras</span><span data-lang="en">Works</span></a></li>
-    <li><a href="#shop"><span data-lang="es">Tienda</span><span data-lang="en">Shop</span></a></li>
-    <li><a href="#contact"><span data-lang="es">Contacto</span><span data-lang="en">Contact</span></a></li>
-  </ul>
-  <button class="hamburger" onclick="toggleMenu()" aria-label="Menu">
-    <span></span><span></span><span></span>
-  </button>
+  <div class="nav-left">
+    <a href="#hero" class="nav-logo">Arte Alquímico</a>
+    <ul class="nav-links">
+      <li><a href="#about"><span data-lang="es">Historia</span><span data-lang="en">Story</span></a></li>
+      <li><a href="#gallery"><span data-lang="es">Obras</span><span data-lang="en">Works</span></a></li>
+      <li><a href="#contact"><span data-lang="es">Contacto</span><span data-lang="en">Contact</span></a></li>
+      <li>
+        <button class="share-nav-btn" onclick="openShareModal()" title="Compartir página"
+                style="background:none;border:1px solid rgba(201,168,76,0.3);color:var(--gold);
+                       padding:5px 12px;cursor:pointer;font-family:'Cinzel',serif;
+                       font-size:10px;letter-spacing:1px;border-radius:2px;
+                       display:flex;align-items:center;gap:6px;transition:all 0.2s"
+                onmouseover="this.style.background='rgba(201,168,76,0.1)'"
+                onmouseout="this.style.background='none'">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          <span data-lang="es">Compartir</span><span data-lang="en">Share</span>
+        </button>
+      </li>
+    </ul>
+  </div>
+  <div class="nav-right">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('es')" id="btn-es">ES</button>
+      <button class="lang-btn" onclick="setLang('en')" id="btn-en">EN</button>
+    </div>
+    <button class="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
 </nav>
 
 <!-- Mobile Menu -->
 <div class="mobile-menu" id="mobileMenu">
   <a href="#about" onclick="toggleMenu()"><span data-lang="es">Historia</span><span data-lang="en">Story</span></a>
   <a href="#gallery" onclick="toggleMenu()"><span data-lang="es">Obras</span><span data-lang="en">Works</span></a>
-  <a href="#shop" onclick="toggleMenu()"><span data-lang="es">Tienda</span><span data-lang="en">Shop</span></a>
   <a href="#contact" onclick="toggleMenu()"><span data-lang="es">Contacto</span><span data-lang="en">Contact</span></a>
+  <button onclick="toggleMenu();openShareModal()"
+          style="background:none;border:1px solid rgba(201,168,76,0.4);color:var(--gold);
+                 padding:10px 28px;font-family:'Cinzel',serif;font-size:12px;
+                 letter-spacing:2px;cursor:pointer;border-radius:2px;text-transform:uppercase">
+    <span data-lang="es">Compartir</span><span data-lang="en">Share</span>
+  </button>
+  <!-- ES/EN en menú móvil -->
+  <div style="display:flex;gap:0;border:1px solid rgba(201,168,76,0.3);border-radius:4px;overflow:hidden;margin-top:8px">
+    <button class="lang-btn" onclick="setLang('es');toggleMenu()"
+            style="padding:10px 24px;font-family:'Cinzel',serif;font-size:12px;
+                   letter-spacing:2px;background:transparent;color:var(--gold);
+                   border:none;cursor:pointer">ES</button>
+    <div style="width:1px;background:rgba(201,168,76,0.3)"></div>
+    <button class="lang-btn" onclick="setLang('en');toggleMenu()"
+            style="padding:10px 24px;font-family:'Cinzel',serif;font-size:12px;
+                   letter-spacing:2px;background:transparent;color:var(--gold);
+                   border:none;cursor:pointer">EN</button>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════
@@ -1128,13 +1312,15 @@ body.lang-en span[data-lang="es"] { display: none; }
             INSTRUCCIÓN: Reemplaza la línea de abajo con:
             <img src="foto-rolando.jpg" alt="Lcdo. Rolando Ordóñez Segovia">
           -->
-          <div class="portrait-placeholder">
+          <div class="portrait-placeholder" id="portrait-placeholder-box">
             <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="32" cy="22" r="12" stroke="currentColor" stroke-width="1"/>
               <path d="M8 56c0-13.255 10.745-24 24-24s24 10.745 24 24" stroke="currentColor" stroke-width="1"/>
             </svg>
             <span>Foto del artista</span>
           </div>
+          <img id="portrait-img" src="" alt="Lcdo. Rolando Ordóñez Segovia"
+               style="display:none;width:100%;height:100%;object-fit:cover;filter:sepia(20%) contrast(1.05)">
         </div>
         <p class="portrait-caption">Lcdo. Rolando Antonio Ordóñez Segovia</p>
 
@@ -1166,6 +1352,7 @@ body.lang-en span[data-lang="es"] { display: none; }
         <div class="section-divider reveal reveal-delay-2"></div>
 
         <div class="reveal reveal-delay-2">
+          <div id="bio-texto-es">
           <p data-lang="es" style="font-size:17px;line-height:1.9;color:var(--parch2);opacity:0.85;margin-bottom:20px">
             El Licenciado Rolando Antonio Ordóñez Segovia es un artista plástico de profunda trayectoria, cuya obra transita entre la tradición y la innovación con maestría singular. A lo largo de décadas de creación, ha cultivado un universo visual que abarca la pintura al óleo, el acrílico, el grabado, la xilografía, el dibujo y la escultura.
           </p>
@@ -1175,6 +1362,7 @@ body.lang-en span[data-lang="es"] { display: none; }
           <p data-lang="es" style="font-size:17px;line-height:1.9;color:var(--parch2);opacity:0.85">
             Su trabajo bajo el nombre <em style="color:var(--gold-light)">Arte Alquímico</em> refleja esa capacidad de transformar materias cotidianas en expresiones de belleza permanente.
           </p>
+          </div>
 
           <p data-lang="en" style="font-size:16px;line-height:1.9;color:var(--parch2);opacity:0.65;margin-bottom:16px;font-style:italic">
             Lcdo. Rolando Antonio Ordóñez Segovia is a visual artist of profound career, whose work moves between tradition and innovation with singular mastery. Over decades of creation, he has cultivated a visual universe spanning oil painting, acrylics, engraving, woodcutting, drawing and sculpture.
@@ -1190,7 +1378,6 @@ body.lang-en span[data-lang="es"] { display: none; }
     </div>
   </div>
 </section>
-
 
 
 <!-- ══════════════════════════════════
@@ -1260,6 +1447,71 @@ body.lang-en span[data-lang="es"] { display: none; }
     </div>
   </div>
 </section>
+
+<!-- ─── TARJETA DE CONTACTO DEL ARTISTA ─── -->
+<div id="artist-card-modal"
+     style="display:none;position:fixed;inset:0;z-index:3500;
+            background:rgba(13,11,8,0.93);align-items:center;justify-content:center;
+            font-family:'EB Garamond',Georgia,serif;padding:16px;box-sizing:border-box">
+  <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.35);
+              max-width:360px;width:100%;position:relative;overflow:hidden">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at top,rgba(201,168,76,0.06) 0%,transparent 70%);pointer-events:none"></div>
+    <button onclick="closeArtistCard()"
+            style="position:absolute;top:12px;right:14px;background:none;border:none;
+                   color:#c9a84c;font-size:22px;cursor:pointer;opacity:0.6;z-index:2">x</button>
+    <div id="card-foto-box"
+         style="width:100%;height:180px;background:linear-gradient(135deg,#1a1710,#0d0b08);
+                display:flex;align-items:center;justify-content:center;overflow:hidden">
+      <img id="card-foto-img" src="" alt="Artista"
+           style="display:none;width:100%;height:100%;object-fit:cover;filter:sepia(15%)">
+      <div id="card-foto-placeholder" style="text-align:center;color:rgba(201,168,76,0.3)">
+        <svg width="56" height="56" viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="22" r="12" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M8 56c0-13 10.745-24 24-24s24 11 24 24" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </div>
+    <div style="padding:24px 22px 28px;position:relative">
+      <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
+                color:#c9a84c;opacity:0.7;margin-bottom:4px;text-transform:uppercase">Arte Alquimico</p>
+      <h3 id="card-nombre"
+          style="font-family:'Cinzel Decorative',serif;font-size:19px;color:#e8c97a;
+                 margin-bottom:6px;line-height:1.3">Lcdo. Rolando Ordóñez</h3>
+      <p id="card-subtitulo"
+         style="font-size:14px;color:#f5f0e8;opacity:0.5;font-style:italic;margin-bottom:20px">
+         Artista Plastico · Ecuador</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <a id="card-whatsapp-btn" href="#" target="_blank"
+           style="display:flex;align-items:center;gap:12px;padding:13px 16px;
+                  background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);
+                  color:#25d366;text-decoration:none;border-radius:2px;transition:all 0.2s"
+           onmouseover="this.style.background='rgba(37,211,102,0.2)'"
+           onmouseout="this.style.background='rgba(37,211,102,0.1)'">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          <div><p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;margin-bottom:1px">WHATSAPP</p><p style="font-size:13px;opacity:0.8">Escribenos ahora</p></div>
+        </a>
+        <a id="card-facebook-btn" href="#" target="_blank"
+           style="display:flex;align-items:center;gap:12px;padding:13px 16px;
+                  background:rgba(24,119,242,0.1);border:1px solid rgba(24,119,242,0.3);
+                  color:#4e8ee8;text-decoration:none;border-radius:2px;transition:all 0.2s"
+           onmouseover="this.style.background='rgba(24,119,242,0.18)'"
+           onmouseout="this.style.background='rgba(24,119,242,0.1)'">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          <div><p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;margin-bottom:1px">FACEBOOK</p><p style="font-size:13px;opacity:0.8">Arte Alquimico</p></div>
+        </a>
+        <a id="card-instagram-btn" href="#" target="_blank"
+           style="display:flex;align-items:center;gap:12px;padding:13px 16px;
+                  background:rgba(193,53,132,0.1);border:1px solid rgba(193,53,132,0.3);
+                  color:#e06898;text-decoration:none;border-radius:2px;transition:all 0.2s"
+           onmouseover="this.style.background='rgba(193,53,132,0.18)'"
+           onmouseout="this.style.background='rgba(193,53,132,0.1)'">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          <div><p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;margin-bottom:1px">INSTAGRAM</p><p style="font-size:13px;opacity:0.8">Arte Alquimico</p></div>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Lightbox -->
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -1381,58 +1633,64 @@ body.lang-en span[data-lang="es"] { display: none; }
             </div>
           </a>
 
-          <!-- Email — CAMBIA el email aquí -->
-          <a href="/cdn-cgi/l/email-protection#e382919786828f92968a8e8a808ca3848e828a8fcd808c8e" class="contact-link">
-            <div class="contact-link-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            </div>
-            <div>
-              <span class="contact-link-label">Email</span>
-              <span class="contact-link-value"><span class="__cf_email__" data-cfemail="85e4f7f1e0e4e9f4f0ece8ece6eac5e2e8e4ece9abe6eae8">[email&#160;protected]</span></span>
-            </div>
-          </a>
-
         </div>
       </div>
 
-      <!-- Formulario -->
+      <!-- Formulario Obra Personalizada -->
       <div class="contact-form reveal reveal-delay-2">
+        <div style="margin-bottom:20px">
+          <p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;
+                    color:var(--gold);opacity:0.8;margin-bottom:8px;text-transform:uppercase">
+            <span data-lang="es">✦ Obra Personalizada</span>
+            <span data-lang="en">✦ Custom Commission</span>
+          </p>
+          <p style="font-size:15px;line-height:1.7;color:var(--parch2);opacity:0.7" data-lang="es">
+            ¿Tienes una idea especial? El artista puede crear una obra a tu medida — 
+            cuéntanos tu visión y te contactamos.
+          </p>
+          <p style="font-size:15px;line-height:1.7;color:var(--parch2);opacity:0.6;font-style:italic" data-lang="en">
+            Do you have a special idea? The artist can create a work just for you — 
+            share your vision and we'll be in touch.
+          </p>
+        </div>
         <form onsubmit="sendForm(event)">
           <div class="form-group">
-            <label class="form-label" data-lang="es">Nombre completo</label>
-            <label class="form-label" data-lang="en">Full name</label>
-            <input type="text" class="form-input" id="fname" required
-                   placeholder="Tu nombre" />
+            <label class="form-label" data-lang="es">Tu nombre</label>
+            <label class="form-label" data-lang="en">Your name</label>
+            <input type="text" class="form-input" id="fname" required placeholder="Nombre completo"/>
           </div>
           <div class="form-group">
-            <label class="form-label">WhatsApp / Teléfono</label>
-            <input type="text" class="form-input" id="femail" required
-                   placeholder="Tu número de WhatsApp" />
+            <label class="form-label" data-lang="es">Tu WhatsApp o teléfono</label>
+            <label class="form-label" data-lang="en">Your WhatsApp or phone</label>
+            <input type="text" class="form-input" id="femail" required placeholder="+593..."/>
           </div>
           <div class="form-group">
-            <label class="form-label" data-lang="es">Motivo del contacto</label>
-            <label class="form-label" data-lang="en">Reason for contact</label>
+            <label class="form-label" data-lang="es">Técnica que te interesa</label>
+            <label class="form-label" data-lang="en">Technique of interest</label>
             <select class="form-select form-input" id="ftype">
-              <option value="compra" data-lang="es">Quiero comprar una obra</option>
-              <option value="pedido" data-lang="es">Trabajo bajo pedido</option>
-              <option value="info" data-lang="es">Información general</option>
-              <option value="compra" data-lang="en">I want to buy a work</option>
-              <option value="pedido" data-lang="en">Custom commission</option>
-              <option value="info" data-lang="en">General information</option>
+              <option value="Café Soluble">☕ Técnica en Café Soluble</option>
+              <option value="Pintura al Óleo">🎨 Pintura al Óleo / Acrílico</option>
+              <option value="Grabado/Xilografía">🪵 Grabado / Xilografía</option>
+              <option value="Escultura">🗿 Escultura</option>
+              <option value="Dibujo/Ilustración">✏️ Dibujo / Ilustración</option>
+              <option value="No sé, quiero orientación">💬 No sé, quiero orientación</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label" data-lang="es">Mensaje</label>
-            <label class="form-label" data-lang="en">Message</label>
+            <label class="form-label" data-lang="es">Describe tu idea</label>
+            <label class="form-label" data-lang="en">Describe your idea</label>
             <textarea class="form-textarea" id="fmsg" required
-                      placeholder="Cuéntanos qué tienes en mente..."></textarea>
+                      placeholder="¿Qué obra tienes en mente? Tamaño, colores, tema, para quién es..."></textarea>
           </div>
           <button type="submit" class="form-submit">
-            <span data-lang="es">Enviar mensaje</span>
-            <span data-lang="en">Send message</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right:8px">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+            <span data-lang="es">Enviar por WhatsApp</span>
+            <span data-lang="en">Send via WhatsApp</span>
           </button>
-          <p class="form-note" data-lang="es">Responderemos en menos de 24 horas.</p>
-          <p class="form-note" data-lang="en">We'll respond within 24 hours.</p>
+          <p class="form-note" data-lang="es">Tu mensaje llegará directo al artista por WhatsApp.</p>
+          <p class="form-note" data-lang="en">Your message goes straight to the artist via WhatsApp.</p>
         </form>
       </div>
 
@@ -1467,428 +1725,206 @@ body.lang-en span[data-lang="es"] { display: none; }
   </a>
 </div>
 
+
+
 <!-- ══════════════════════════════════════════════
      PANEL ADMINISTRADOR
 ══════════════════════════════════════════════ -->
 
-<!-- Botón flotante oculto para acceder al admin (esquina inferior izquierda) -->
-<div id="admin-trigger" onclick="showAdminLogin()"
-     style="position:fixed;bottom:24px;left:24px;z-index:5000;
-            width:36px;height:36px;border-radius:50%;
-            background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);
-            display:flex;align-items:center;justify-content:center;
-            cursor:pointer;transition:all 0.3s;opacity:0.3"
-     onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.3'">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-       stroke="#c9a84c" stroke-width="2">
-    <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-  </svg>
-</div>
-
-<!-- OVERLAY LOGIN -->
-<div id="admin-login-overlay"
-     style="display:none;position:fixed;inset:0;z-index:6000;
-            background:rgba(13,11,8,0.97);align-items:center;justify-content:center;">
-  <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.3);
-              padding:48px;max-width:380px;width:90%;position:relative;">
-    <button onclick="hideAdminLogin()"
-            style="position:absolute;top:16px;right:20px;background:none;border:none;
-                   color:#c9a84c;font-family:'Cinzel',serif;font-size:11px;
-                   letter-spacing:2px;cursor:pointer;opacity:0.6">CERRAR ✕</button>
-    <p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:4px;
-              color:#c9a84c;opacity:0.7;margin-bottom:12px;text-transform:uppercase">
-      Acceso Propietario</p>
-    <h2 style="font-family:'Cinzel Decorative',serif;font-size:22px;
-               color:#e8c97a;margin-bottom:32px">Panel Admin</h2>
-    <div style="margin-bottom:16px">
-      <label style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;
-                    color:#c9a84c;opacity:0.7;display:block;margin-bottom:8px;
-                    text-transform:uppercase">Usuario</label>
-      <input type="text" id="admin-user"
-             style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
-                    color:#f5f0e8;font-size:15px;padding:12px 16px;outline:none;
-                    font-family:'EB Garamond',serif"
-             placeholder="admin" onkeydown="if(event.key==='Enter')doLogin()"/>
-    </div>
-    <div style="margin-bottom:24px">
-      <label style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;
-                    color:#c9a84c;opacity:0.7;display:block;margin-bottom:8px;
-                    text-transform:uppercase">Contraseña</label>
-      <input type="password" id="admin-pass"
-             style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
-                    color:#f5f0e8;font-size:15px;padding:12px 16px;outline:none;
-                    font-family:'EB Garamond',serif"
-             placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
-    </div>
-    <div id="login-error"
-         style="display:none;color:#f06060;font-size:13px;
-                margin-bottom:16px;font-style:italic">
-      Usuario o contraseña incorrectos.</div>
-    <button onclick="doLogin()"
-            style="width:100%;font-family:'Cinzel',serif;font-size:11px;
-                   letter-spacing:3px;text-transform:uppercase;padding:14px;
-                   background:transparent;border:1px solid #c9a84c;color:#c9a84c;
-                   cursor:pointer;transition:all 0.3s"
-            onmouseover="this.style.background='#c9a84c';this.style.color='#0d0b08'"
-            onmouseout="this.style.background='transparent';this.style.color='#c9a84c'">
-      Ingresar
-    </button>
-    <p style="margin-top:16px;font-size:12px;color:#f5f0e8;opacity:0.3;
-              text-align:center;font-style:italic">
-      Solo el propietario puede editar esta página.</p>
-  </div>
-</div>
-
-<!-- PANEL DE EDICIÓN -->
-<div id="admin-panel"
-     style="display:none;position:fixed;top:0;right:0;bottom:0;z-index:5500;
-            width:380px;background:#0d0b08;border-left:1px solid rgba(201,168,76,0.2);
-            overflow-y:auto;box-shadow:-8px 0 40px rgba(0,0,0,0.6);">
-
-  <!-- Header panel -->
-  <div style="padding:24px;border-bottom:1px solid rgba(201,168,76,0.15);
-              display:flex;align-items:center;justify-content:space-between;
-              position:sticky;top:0;background:#0d0b08;z-index:10;">
-    <div>
-      <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
-                color:#c9a84c;opacity:0.7;margin-bottom:4px">MODO EDICIÓN</p>
-      <p style="font-family:'Cinzel Decorative',serif;font-size:16px;color:#e8c97a">
-        Panel Admin</p>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="saveAllChanges()"
-              style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                     padding:8px 16px;background:#c9a84c;border:none;color:#0d0b08;
-                     cursor:pointer;text-transform:uppercase">
-        Guardar</button>
-      <button onclick="closeAdmin()"
-              style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                     padding:8px 12px;background:transparent;
-                     border:1px solid rgba(201,168,76,0.3);color:#c9a84c;
-                     cursor:pointer">✕</button>
-    </div>
-  </div>
-
-  <!-- Secciones editables -->
-  <div style="padding:24px;display:flex;flex-direction:column;gap:32px;">
-
-    <!-- Aviso -->
-    <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);
-                padding:14px;font-size:13px;color:#e8c97a;line-height:1.6;">
-      Los cambios se guardan en este navegador. Para cambiarlos permanentemente en la
-      web publicada, edita el archivo <code style="color:#c9a84c">index.html</code>
-      directamente con los valores de abajo.
-    </div>
-
-    <!-- SECCIÓN: Links / Redes -->
-    <div>
-      <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
-                color:#c9a84c;text-transform:uppercase;margin-bottom:16px;
-                border-bottom:1px solid rgba(201,168,76,0.1);padding-bottom:8px">
-        Links y Redes Sociales</p>
-      <div style="display:flex;flex-direction:column;gap:14px">
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            WHATSAPP (número con código país)</label>
-          <input type="text" id="ed-whatsapp" placeholder="593XXXXXXXXX"
-                 style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                        color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                        font-family:'EB Garamond',serif"/>
-          <p style="font-size:11px;color:#f5f0e8;opacity:0.35;margin-top:4px;
-                    font-style:italic">Ej: 593987654321 (sin + ni espacios)</p>
-        </div>
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            FACEBOOK (URL completa)</label>
-          <input type="text" id="ed-facebook" placeholder="https://www.facebook.com/artealquimico"
-                 style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                        color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                        font-family:'EB Garamond',serif"/>
-        </div>
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            INSTAGRAM (URL completa)</label>
-          <input type="text" id="ed-instagram" placeholder="https://www.instagram.com/artealquimico"
-                 style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                        color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                        font-family:'EB Garamond',serif"/>
-        </div>
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            EMAIL</label>
-          <input type="text" id="ed-email" placeholder="artealquimico@gmail.com"
-                 style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                        color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                        font-family:'EB Garamond',serif"/>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECCIÓN: Frase hero -->
-    <div>
-      <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
-                color:#c9a84c;text-transform:uppercase;margin-bottom:16px;
-                border-bottom:1px solid rgba(201,168,76,0.1);padding-bottom:8px">
-        Frase Principal (Hero)</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            ESPAÑOL</label>
-          <textarea id="ed-tagline-es" rows="3"
-                    style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                           color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                           font-family:'EB Garamond',serif;resize:vertical">Donde la materia se transforma en arte, y el arte en eternidad.</textarea>
-        </div>
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            INGLÉS</label>
-          <textarea id="ed-tagline-en" rows="3"
-                    style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                           color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                           font-family:'EB Garamond',serif;resize:vertical">Where matter transforms into art, and art into eternity.</textarea>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECCIÓN: Historia / Bio -->
-    <div>
-      <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
-                color:#c9a84c;text-transform:uppercase;margin-bottom:16px;
-                border-bottom:1px solid rgba(201,168,76,0.1);padding-bottom:8px">
-        Biografía del Artista</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            TEXTO ESPAÑOL (párrafo principal)</label>
-          <textarea id="ed-bio-es" rows="6"
-                    style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                           color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                           font-family:'EB Garamond',serif;resize:vertical">El Licenciado Rolando Antonio Ordóñez Segovia es un artista plástico de profunda trayectoria...</textarea>
-        </div>
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            TEXTO INGLÉS</label>
-          <textarea id="ed-bio-en" rows="6"
-                    style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                           color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                           font-family:'EB Garamond',serif;resize:vertical">Lcdo. Rolando Antonio Ordóñez Segovia is a visual artist of profound career...</textarea>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECCIÓN: Precios -->
-    <div>
-      <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
-                color:#c9a84c;text-transform:uppercase;margin-bottom:16px;
-                border-bottom:1px solid rgba(201,168,76,0.1);padding-bottom:8px">
-        Precios en Tienda</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            OBRA EN CAFÉ SOLUBLE</label>
-          <input type="text" id="ed-price1" placeholder="$150"
-                 style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                        color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                        font-family:'EB Garamond',serif"/>
-        </div>
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            PINTURA ORIGINAL</label>
-          <input type="text" id="ed-price2" placeholder="$300"
-                 style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                        color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                        font-family:'EB Garamond',serif"/>
-        </div>
-        <div>
-          <label style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                        color:#c9a84c;opacity:0.7;display:block;margin-bottom:6px">
-            GRABADO / XILOGRAFÍA</label>
-          <input type="text" id="ed-price3" placeholder="$80"
-                 style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                        color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                        font-family:'EB Garamond',serif"/>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECCIÓN: Cambiar contraseña -->
-    <div>
-      <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
-                color:#c9a84c;text-transform:uppercase;margin-bottom:16px;
-                border-bottom:1px solid rgba(201,168,76,0.1);padding-bottom:8px">
-        Cambiar Contraseña</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <input type="password" id="ed-newpass" placeholder="Nueva contraseña"
-               style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                      color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                      font-family:'EB Garamond',serif"/>
-        <input type="password" id="ed-newpass2" placeholder="Confirmar contraseña"
-               style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                      color:#f5f0e8;font-size:14px;padding:10px 12px;outline:none;
-                      font-family:'EB Garamond',serif"/>
-        <button onclick="changePassword()"
-                style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                       padding:10px;background:transparent;
-                       border:1px solid rgba(201,168,76,0.3);color:#c9a84c;
-                       cursor:pointer;text-transform:uppercase">
-          Actualizar contraseña</button>
-        <div id="pass-msg" style="font-size:12px;font-style:italic;display:none"></div>
-      </div>
-    </div>
-
-    <!-- Cerrar sesión -->
-    <button onclick="closeAdmin()"
-            style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
-                   padding:12px;background:rgba(240,96,96,0.08);
-                   border:1px solid rgba(240,96,96,0.2);color:#f06060;
-                   cursor:pointer;text-transform:uppercase;margin-bottom:24px">
-      Cerrar sesión</button>
-
-  </div>
-</div>
-
-<!-- Overlay oscuro cuando panel está abierto -->
-<div id="panel-overlay" onclick="closeAdmin()"
-     style="display:none;position:fixed;inset:0;z-index:5400;
-            background:rgba(0,0,0,0.4)"></div>
-
-
-<!-- ─── TARJETA DE CONTACTO DEL ARTISTA ─── -->
-<div id="artist-card-modal" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(13,11,8,0.93);align-items:center;justify-content:center;font-family:'EB Garamond',Georgia,serif;padding:16px;box-sizing:border-box">
-  <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.35);max-width:360px;width:100%;position:relative;overflow:hidden">
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at top,rgba(201,168,76,0.06) 0%,transparent 70%);pointer-events:none"></div>
-    <button onclick="closeArtistCard()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:#c9a84c;font-size:24px;cursor:pointer;opacity:0.7;z-index:2">×</button>
-    <div id="card-foto-box" style="width:100%;height:180px;background:linear-gradient(135deg,#1a1710,#0d0b08);display:flex;align-items:center;justify-content:center;overflow:hidden">
-      <img id="card-foto-img" src="" alt="Artista" style="display:none;width:100%;height:100%;object-fit:cover;filter:sepia(15%)">
-      <div id="card-foto-placeholder" style="text-align:center;color:rgba(201,168,76,0.3)">
-        <svg width="56" height="56" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="22" r="12" stroke="currentColor" stroke-width="1.5"/><path d="M8 56c0-13 10.745-24 24-24s24 11 24 24" stroke="currentColor" stroke-width="1.5"/></svg>
-      </div>
-    </div>
-    <div style="padding:24px 22px 28px;position:relative">
-      <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:#c9a84c;opacity:0.7;margin-bottom:4px;text-transform:uppercase">Arte Alquimico</p>
-      <h3 id="card-nombre" style="font-family:'Cinzel Decorative',serif;font-size:19px;color:#e8c97a;margin-bottom:6px;line-height:1.3">Lcdo. Rolando Ordóñez</h3>
-      <p id="card-subtitulo" style="font-size:14px;color:#f5f0e8;opacity:0.5;font-style:italic;margin-bottom:20px">Artista Plástico · Ecuador</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <a id="card-whatsapp-btn" href="#" target="_blank" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);color:#25d366;text-decoration:none;border-radius:2px;transition:all 0.2s">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-          <div><p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;margin-bottom:1px">WHATSAPP</p><p style="font-size:13px;opacity:0.8">Escribenos ahora</p></div>
-        </a>
-        <a id="card-facebook-btn" href="#" target="_blank" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:rgba(24,119,242,0.1);border:1px solid rgba(24,119,242,0.3);color:#4e8ee8;text-decoration:none;border-radius:2px">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-          <div><p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;margin-bottom:1px">FACEBOOK</p><p style="font-size:13px;opacity:0.8">Arte Alquimico</p></div>
-        </a>
-        <a id="card-instagram-btn" href="#" target="_blank" style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:rgba(193,53,132,0.1);border:1px solid rgba(193,53,132,0.3);color:#e06898;text-decoration:none;border-radius:2px">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-          <div><p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;margin-bottom:1px">INSTAGRAM</p><p style="font-size:13px;opacity:0.8">Arte Alquimico</p></div>
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ═══ MODAL COMPARTIR ═══ -->
-<div id="share-modal" style="display:none;position:fixed;inset:0;z-index:4000;background:rgba(13,11,8,0.93);align-items:center;justify-content:center;font-family:'EB Garamond',Georgia,serif;padding:16px">
-  <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.35);max-width:360px;width:100%;padding:32px 28px;position:relative">
-    <button onclick="closeShareModal()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:#c9a84c;font-size:24px;cursor:pointer;opacity:0.7">×</button>
-    <p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:#c9a84c;margin-bottom:6px;text-transform:uppercase;opacity:0.7">Compartir</p>
-    <h3 style="font-family:'Cinzel Decorative',serif;font-size:20px;color:#e8c97a;margin-bottom:24px">Arte Alquimico</h3>
+<div id="share-modal"
+     style="display:none;position:fixed;inset:0;z-index:4000;
+            background:rgba(13,11,8,0.93);align-items:center;justify-content:center;
+            font-family:'EB Garamond',Georgia,serif;padding:16px">
+  <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.35);
+              max-width:360px;width:100%;padding:32px 28px;position:relative">
+    <button onclick="closeShareModal()"
+            style="position:absolute;top:12px;right:14px;background:none;border:none;
+                   color:#c9a84c;font-size:22px;cursor:pointer;opacity:0.6">x</button>
+    <p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;
+              color:#c9a84c;margin-bottom:6px;text-transform:uppercase;opacity:0.7">
+      Compartir</p>
+    <h3 style="font-family:'Cinzel Decorative',serif;font-size:20px;color:#e8c97a;margin-bottom:24px">
+      Arte Alquimico</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <button onclick="shareTo('whatsapp')" style="display:flex;align-items:center;gap:8px;padding:12px;background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);color:#25d366;cursor:pointer;border-radius:4px;font-family:'Cinzel',serif;font-size:10px">
+      <button onclick="shareTo('whatsapp')"
+              style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+                     background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.3);
+                     color:#25d366;cursor:pointer;border-radius:4px;font-family:'Cinzel',serif;
+                     font-size:10px;letter-spacing:1px;transition:all 0.2s"
+              onmouseover="this.style.background='rgba(37,211,102,0.2)'"
+              onmouseout="this.style.background='rgba(37,211,102,0.1)'">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
         WhatsApp
       </button>
-      <button onclick="shareTo('facebook')" style="display:flex;align-items:center;gap:8px;padding:12px;background:rgba(24,119,242,0.1);border:1px solid rgba(24,119,242,0.3);color:#4e8ee8;cursor:pointer;border-radius:4px;font-family:'Cinzel',serif;font-size:10px">
+      <button onclick="shareTo('facebook')"
+              style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+                     background:rgba(24,119,242,0.1);border:1px solid rgba(24,119,242,0.3);
+                     color:#4e8ee8;cursor:pointer;border-radius:4px;font-family:'Cinzel',serif;
+                     font-size:10px;letter-spacing:1px;transition:all 0.2s"
+              onmouseover="this.style.background='rgba(24,119,242,0.18)'"
+              onmouseout="this.style.background='rgba(24,119,242,0.1)'">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
         Facebook
       </button>
-      <button onclick="shareTo('telegram')" style="display:flex;align-items:center;gap:8px;padding:12px;background:rgba(0,136,204,0.1);border:1px solid rgba(0,136,204,0.3);color:#29b5e8;cursor:pointer;border-radius:4px;font-family:'Cinzel',serif;font-size:10px">
+      <button onclick="shareTo('telegram')"
+              style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+                     background:rgba(0,136,204,0.1);border:1px solid rgba(0,136,204,0.3);
+                     color:#29b5e8;cursor:pointer;border-radius:4px;font-family:'Cinzel',serif;
+                     font-size:10px;letter-spacing:1px;transition:all 0.2s"
+              onmouseover="this.style.background='rgba(0,136,204,0.18)'"
+              onmouseout="this.style.background='rgba(0,136,204,0.1)'">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
         Telegram
       </button>
-      <button onclick="shareTo('twitter')" style="display:flex;align-items:center;gap:8px;padding:12px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.15);color:#e8e8e8;cursor:pointer;border-radius:4px;font-family:'Cinzel',serif;font-size:10px">
+      <button onclick="shareTo('twitter')"
+              style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+                     background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.15);
+                     color:#e8e8e8;cursor:pointer;border-radius:4px;font-family:'Cinzel',serif;
+                     font-size:10px;letter-spacing:1px;transition:all 0.2s"
+              onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+              onmouseout="this.style.background='rgba(0,0,0,0.2)'">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </button>
     </div>
-    <button id="copy-link-btn" onclick="shareTo('copy')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);color:#c9a84c;cursor:pointer;border-radius:4px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;text-transform:uppercase">
+    <button id="copy-link-btn" onclick="shareTo('copy')"
+            style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+                   padding:13px;background:rgba(201,168,76,0.08);
+                   border:1px solid rgba(201,168,76,0.3);color:#c9a84c;cursor:pointer;
+                   border-radius:4px;font-family:'Cinzel',serif;font-size:10px;
+                   letter-spacing:2px;text-transform:uppercase;transition:all 0.2s"
+            onmouseover="this.style.background='rgba(201,168,76,0.15)'"
+            onmouseout="this.style.background='rgba(201,168,76,0.08)'">
       🔗 Copiar link
     </button>
-    <p style="font-size:12px;color:#f5f0e8;opacity:0.35;text-align:center;margin-top:10px;font-style:italic">Para Instagram: copia el link y pégalo en tu bio o stories</p>
+    <p style="font-size:12px;color:#f5f0e8;opacity:0.35;text-align:center;margin-top:12px;
+              font-style:italic">Para Instagram: copia el link y pegalo en tu bio o stories</p>
   </div>
 </div>
 
 <!-- ═══ MODAL CATEGORÍAS ═══ -->
-<div id="modal-categorias" style="display:none;position:fixed;inset:0;z-index:5600;background:rgba(13,11,8,0.95);align-items:center;justify-content:center;font-family:'EB Garamond',Georgia,serif;padding:16px">
-  <div style="background:#0f0d0a;border:1px solid rgba(201,168,76,0.3);max-width:400px;width:100%;max-height:80vh;overflow-y:auto;position:relative">
-    <div style="position:sticky;top:0;background:#0f0d0a;padding:20px 22px;border-bottom:1px solid rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:space-between">
-      <p style="font-family:'Cinzel',serif;font-size:13px;color:#e8c97a;letter-spacing:2px">Gestionar Categorías</p>
-      <button onclick="cerrarGestionCategorias()" style="background:none;border:none;color:#c9a84c;font-size:24px;cursor:pointer">×</button>
+<div id="modal-categorias"
+     style="display:none;position:fixed;inset:0;z-index:5600;
+            background:rgba(13,11,8,0.95);align-items:center;justify-content:center;
+            font-family:'EB Garamond',Georgia,serif;padding:16px">
+  <div style="background:#0f0d0a;border:1px solid rgba(201,168,76,0.3);
+              max-width:400px;width:100%;max-height:80vh;overflow-y:auto;position:relative">
+    <div style="position:sticky;top:0;background:#0f0d0a;padding:20px 22px;
+                border-bottom:1px solid rgba(201,168,76,0.15);
+                display:flex;align-items:center;justify-content:space-between">
+      <p style="font-family:'Cinzel',serif;font-size:13px;color:#e8c97a;letter-spacing:2px">
+        Gestionar Categorías</p>
+      <button onclick="cerrarGestionCategorias()"
+              style="background:none;border:none;color:#c9a84c;font-size:22px;cursor:pointer">x</button>
     </div>
     <div style="padding:20px">
-      <p style="font-size:13px;color:#f5f0e8;opacity:0.45;margin-bottom:16px;line-height:1.6">Las categorías base no se pueden borrar. Las que creas sí se pueden renombrar o eliminar.</p>
+      <p style="font-size:13px;color:#f5f0e8;opacity:0.45;margin-bottom:16px;line-height:1.6">
+        Las categorías en gris son predefinidas y no se pueden borrar. 
+        Las que tú creas sí se pueden renombrar o eliminar.</p>
       <div id="cats-lista"></div>
     </div>
   </div>
 </div>
 
 <!-- ═══ MODAL EDITAR OBRA ═══ -->
-<div id="modal-editar" style="display:none;position:fixed;inset:0;z-index:5600;background:rgba(13,11,8,0.95);align-items:center;justify-content:center;font-family:'EB Garamond',Georgia,serif;padding:16px">
-  <div style="background:#0f0d0a;border:1px solid rgba(201,168,76,0.3);max-width:400px;width:100%;max-height:90vh;overflow-y:auto">
-    <div style="position:sticky;top:0;background:#0f0d0a;padding:18px 22px;border-bottom:1px solid rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:space-between">
-      <p style="font-family:'Cinzel',serif;font-size:13px;color:#e8c97a;letter-spacing:2px">Editar Obra</p>
-      <button onclick="cerrarEditarObra()" style="background:none;border:none;color:#c9a84c;font-size:24px;cursor:pointer">×</button>
+<div id="modal-editar"
+     style="display:none;position:fixed;inset:0;z-index:5600;
+            background:rgba(13,11,8,0.95);align-items:center;justify-content:center;
+            font-family:'EB Garamond',Georgia,serif;padding:16px">
+  <div style="background:#0f0d0a;border:1px solid rgba(201,168,76,0.3);
+              max-width:400px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="position:sticky;top:0;background:#0f0d0a;padding:18px 22px;
+                border-bottom:1px solid rgba(201,168,76,0.15);
+                display:flex;align-items:center;justify-content:space-between">
+      <p style="font-family:'Cinzel',serif;font-size:13px;color:#e8c97a;letter-spacing:2px">
+        Editar Obra</p>
+      <button onclick="cerrarEditarObra()"
+              style="background:none;border:none;color:#c9a84c;font-size:22px;cursor:pointer">x</button>
     </div>
     <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
-      <img id="edit-preview" style="width:100%;max-height:160px;object-fit:cover;border:1px solid rgba(201,168,76,0.2);border-radius:2px" src="" alt="">
+      <img id="edit-preview"
+           style="width:100%;max-height:160px;object-fit:cover;
+                  border:1px solid rgba(201,168,76,0.2);border-radius:2px" src="" alt="">
       <div>
-        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">TÍTULO</label>
-        <input type="text" id="edit-titulo" style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;font-family:'EB Garamond',serif;box-sizing:border-box" onfocus="this.style.borderColor='#c9a84c'" onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                      letter-spacing:2px;color:#c9a84c;margin-bottom:6px">TÍTULO</label>
+        <input type="text" id="edit-titulo"
+               style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                      color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
+                      font-family:'EB Garamond',serif;box-sizing:border-box"
+               onfocus="this.style.borderColor='#c9a84c'"
+               onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
       </div>
       <div>
-        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">TÉCNICA</label>
-        <select id="edit-categoria" style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;font-family:'EB Garamond',serif;cursor:pointer"></select>
+        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                      letter-spacing:2px;color:#c9a84c;margin-bottom:6px">TÉCNICA</label>
+        <select id="edit-categoria"
+                style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                       color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
+                       font-family:'EB Garamond',serif;cursor:pointer"></select>
       </div>
       <div>
-        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">DESCRIPCIÓN</label>
-        <textarea id="edit-desc" rows="2" style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);color:#f5f0e8;font-size:14px;padding:11px 13px;outline:none;font-family:'EB Garamond',serif;resize:vertical;box-sizing:border-box" onfocus="this.style.borderColor='#c9a84c'" onblur="this.style.borderColor='rgba(201,168,76,0.2)'"></textarea>
+        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                      letter-spacing:2px;color:#c9a84c;margin-bottom:6px">DESCRIPCIÓN</label>
+        <textarea id="edit-desc" rows="2"
+                  style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                         color:#f5f0e8;font-size:14px;padding:11px 13px;outline:none;
+                         font-family:'EB Garamond',serif;resize:vertical;box-sizing:border-box"
+                  onfocus="this.style.borderColor='#c9a84c'"
+                  onblur="this.style.borderColor='rgba(201,168,76,0.2)'"></textarea>
       </div>
       <div>
-        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">PRECIO</label>
-        <input type="text" id="edit-precio" style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;font-family:'EB Garamond',serif;box-sizing:border-box" onfocus="this.style.borderColor='#c9a84c'" onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                      letter-spacing:2px;color:#c9a84c;margin-bottom:6px">PRECIO</label>
+        <input type="text" id="edit-precio"
+               style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                      color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
+                      font-family:'EB Garamond',serif;box-sizing:border-box"
+               onfocus="this.style.borderColor='#c9a84c'"
+               onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
       </div>
       <div>
-        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">ESTADO</label>
-        <select id="edit-estado" style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;font-family:'EB Garamond',serif;cursor:pointer">
+        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                      letter-spacing:2px;color:#c9a84c;margin-bottom:6px">ESTADO</label>
+        <select id="edit-estado"
+                style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                       color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
+                       font-family:'EB Garamond',serif;cursor:pointer">
           <option value="stock">🟢 En Stock — Disponible</option>
           <option value="vendida">🔴 Vendida</option>
         </select>
       </div>
-      <button onclick="guardarEdicionObra()" style="width:100%;font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:15px;background:#c9a84c;border:none;color:#0d0b08;cursor:pointer;font-weight:700;transition:all 0.2s" onmouseover="this.style.background='#e8c97a'" onmouseout="this.style.background='#c9a84c'">✓ Guardar cambios</button>
+      <button onclick="guardarEdicionObra()"
+              style="width:100%;font-family:'Cinzel',serif;font-size:11px;letter-spacing:3px;
+                     text-transform:uppercase;padding:15px;background:#c9a84c;border:none;
+                     color:#0d0b08;cursor:pointer;font-weight:700;transition:all 0.2s"
+              onmouseover="this.style.background='#e8c97a'"
+              onmouseout="this.style.background='#c9a84c'">
+        ✓ Guardar cambios</button>
     </div>
   </div>
 </div>
 
-<!-- Botón volver al panel -->
-<div id="btn-volver-panel" style="display:none;position:fixed;bottom:24px;right:24px;z-index:5000">
-  <button onclick="volverPanel()" style="display:flex;align-items:center;gap:10px;padding:12px 20px;background:#c9a84c;border:none;color:#0d0b08;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;border-radius:4px;box-shadow:0 4px 20px rgba(201,168,76,0.4)">
-    ◀ Volver al panel
+
+<!-- Botón flotante volver al panel (solo visible cuando panel está minimizado) -->
+<div id="btn-volver-panel"
+     style="display:none;position:fixed;bottom:24px;right:24px;z-index:5000;
+            font-family:'Cinzel',serif">
+  <button onclick="volverPanel()"
+          style="display:flex;align-items:center;gap:10px;padding:12px 20px;
+                 background:#c9a84c;border:none;color:#0d0b08;cursor:pointer;
+                 font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;
+                 text-transform:uppercase;font-weight:700;border-radius:4px;
+                 box-shadow:0 4px 20px rgba(201,168,76,0.4);transition:all 0.2s"
+          onmouseover="this.style.background='#e8c97a'"
+          onmouseout="this.style.background='#c9a84c'">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+    </svg>
+    Volver al panel
   </button>
 </div>
-
-
-<!-- ══════════════════════════════════════════════
-     PANEL ADMINISTRADOR
-══════════════════════════════════════════════ -->
 <div id="admin-trigger" onclick="showAdminLogin()" title="Acceso administrador"
      style="position:fixed;bottom:24px;left:24px;z-index:5000;width:44px;height:44px;
             border-radius:50%;background:rgba(201,168,76,0.1);
@@ -1931,13 +1967,20 @@ body.lang-en span[data-lang="es"] { display: none; }
     <div style="margin-bottom:20px">
       <label style="display:block;font-family:'Cinzel',serif;font-size:10px;
                     letter-spacing:2px;color:#c9a84c;margin-bottom:7px">CONTRASEÑA</label>
-      <input type="password" id="admin-pass"
-             style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.25);
-                    color:#f5f0e8;font-size:16px;padding:13px 14px;outline:none;
-                    font-family:'EB Garamond',serif;box-sizing:border-box"
-             placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"
-             onfocus="this.style.borderColor='#c9a84c'"
-             onblur="this.style.borderColor='rgba(201,168,76,0.25)'"/>
+      <div style="position:relative">
+        <input type="password" id="admin-pass"
+               style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.25);
+                      color:#f5f0e8;font-size:16px;padding:13px 44px 13px 14px;outline:none;
+                      font-family:'EB Garamond',serif;box-sizing:border-box"
+               placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"
+               onfocus="this.style.borderColor='#c9a84c'"
+               onblur="this.style.borderColor='rgba(201,168,76,0.25)'"/>
+        <button type="button" onclick="toggleVerPass('admin-pass', this)"
+                style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                       background:none;border:none;cursor:pointer;color:#c9a84c;
+                       opacity:0.6;padding:4px;font-size:18px;line-height:1"
+                title="Ver contraseña">👁️</button>
+      </div>
     </div>
     <div id="login-error"
          style="display:none;background:rgba(240,96,96,0.1);border:1px solid rgba(240,96,96,0.3);
@@ -1957,7 +2000,7 @@ body.lang-en span[data-lang="es"] { display: none; }
 <!-- PANEL PRINCIPAL -->
 <div id="admin-panel"
      style="display:none;position:fixed;top:0;right:0;bottom:0;z-index:5500;
-            width:440px;background:#0f0d0a;border-left:1px solid rgba(201,168,76,0.2);
+            width:min(440px,100vw);background:#0f0d0a;border-left:1px solid rgba(201,168,76,0.2);
             overflow-y:auto;font-family:'EB Garamond',Georgia,serif;
             box-shadow:-12px 0 48px rgba(0,0,0,0.7)">
 
@@ -1971,15 +2014,41 @@ body.lang-en span[data-lang="es"] { display: none; }
       <p style="font-family:'Cinzel Decorative',serif;font-size:17px;color:#e8c97a">
         Panel del Artista</p>
     </div>
-    <button onclick="closeAdmin()"
-            style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);
-                   color:#c9a84c;width:36px;height:36px;cursor:pointer;font-size:20px;
-                   border-radius:50%;display:flex;align-items:center;justify-content:center">
-      ×</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="verPagina()"
+              style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;
+                     padding:7px 12px;background:rgba(201,168,76,0.08);
+                     border:1px solid rgba(201,168,76,0.25);color:#c9a84c;
+                     cursor:pointer;border-radius:2px;text-transform:uppercase;
+                     display:flex;align-items:center;gap:6px"
+              title="Minimizar panel y ver página">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+        </svg>
+        Ver
+      </button>
+      <button onclick="cerrarSesion()"
+              style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;
+                     padding:7px 12px;background:rgba(240,96,96,0.08);
+                     border:1px solid rgba(240,96,96,0.25);color:#f06060;
+                     cursor:pointer;border-radius:2px;text-transform:uppercase;
+                     display:flex;align-items:center;gap:6px"
+              title="Cerrar sesión de administrador">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Salir
+      </button>
+    </div>
   </div>
 
   <!-- Tabs -->
   <div style="padding:16px 22px 0;display:flex;gap:8px;flex-wrap:wrap">
+    <button onclick="showTab('tab-perfil')" id="btn-tab-perfil"
+            style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
+                   padding:8px 16px;border-radius:20px;cursor:pointer;
+                   background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);
+                   color:#c9a84c;text-transform:uppercase">👤 Perfil</button>
     <button onclick="showTab('tab-obras')" id="btn-tab-obras"
             style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
                    padding:8px 16px;border-radius:20px;cursor:pointer;
@@ -1995,6 +2064,106 @@ body.lang-en span[data-lang="es"] { display: none; }
                    padding:8px 16px;border-radius:20px;cursor:pointer;
                    background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);
                    color:#c9a84c;text-transform:uppercase">🔑 Contraseña</button>
+  </div>
+
+  <!-- ═══ TAB PERFIL ═══ -->
+  <div id="tab-perfil" style="padding:22px;display:none">
+    <p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;
+              color:#c9a84c;opacity:0.7;margin-bottom:18px;text-transform:uppercase">
+      👤 Perfil del Artista</p>
+
+    <!-- Foto de perfil -->
+    <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                border-radius:4px;padding:18px;margin-bottom:14px">
+      <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                    letter-spacing:2px;color:#c9a84c;margin-bottom:8px">
+        📷 FOTO DEL ARTISTA</label>
+      <p style="font-size:12px;color:#f5f0e8;opacity:0.4;margin-bottom:10px;line-height:1.5">
+        Esta foto aparece en la sección Historia y en la tarjeta de contacto</p>
+      <div id="drop-perfil"
+           style="border:2px dashed rgba(201,168,76,0.3);border-radius:4px;
+                  padding:20px;text-align:center;cursor:pointer;background:rgba(201,168,76,0.03)"
+           onclick="document.getElementById('file-perfil').click()"
+           ondragover="event.preventDefault();this.style.borderColor='#c9a84c'"
+           ondragleave="this.style.borderColor='rgba(201,168,76,0.3)'"
+           ondrop="handleDropPerfil(event)">
+        <div style="font-size:26px;margin-bottom:6px">📂</div>
+        <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
+                  color:#c9a84c;margin-bottom:3px">SELECCIONAR FOTO</p>
+        <p style="font-size:12px;color:#f5f0e8;opacity:0.4">Haz clic aqui</p>
+        <input type="file" id="file-perfil" accept="image/*"
+               style="display:none" onchange="handleFilePerfil(event)"/>
+      </div>
+      <div id="preview-perfil" style="display:none;margin-top:10px;position:relative">
+        <img id="preview-perfil-img"
+             style="width:100%;max-height:160px;object-fit:cover;
+                    border:1px solid rgba(201,168,76,0.25);border-radius:2px" src="" alt="">
+        <button onclick="limpiarPerfil()"
+                style="position:absolute;top:6px;right:6px;background:rgba(13,11,8,0.85);
+                       border:1px solid rgba(201,168,76,0.3);color:#c9a84c;
+                       padding:3px 8px;cursor:pointer;font-size:11px;border-radius:2px">
+          x Cambiar</button>
+      </div>
+    </div>
+
+    <!-- Nombre en tarjeta -->
+    <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                border-radius:4px;padding:18px;margin-bottom:14px">
+      <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                    letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
+        ✍️ NOMBRE (en la tarjeta de contacto)</label>
+      <input type="text" id="perfil-nombre"
+             style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
+                    color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
+                    font-family:'EB Garamond',serif;box-sizing:border-box"
+             placeholder="Lcdo. Rolando Ordóñez Segovia"
+             onfocus="this.style.borderColor='#c9a84c'"
+             onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+    </div>
+
+    <!-- Subtítulo en tarjeta -->
+    <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                border-radius:4px;padding:18px;margin-bottom:14px">
+      <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                    letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
+        💬 SUBTÍTULO (debajo del nombre)</label>
+      <input type="text" id="perfil-subtitulo"
+             style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
+                    color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
+                    font-family:'EB Garamond',serif;box-sizing:border-box"
+             placeholder="Artista Plástico · Ecuador"
+             onfocus="this.style.borderColor='#c9a84c'"
+             onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+    </div>
+
+    <!-- Biografía -->
+    <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.2);
+                border-radius:4px;padding:18px;margin-bottom:14px">
+      <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
+                    letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
+        📖 TEXTO DE HISTORIA (sección "El Artista")</label>
+      <p style="font-size:12px;color:#f5f0e8;opacity:0.4;margin-bottom:8px;line-height:1.5">
+        Escribe aqui la vida y trayectoria del artista</p>
+      <textarea id="perfil-bio" rows="8"
+                style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
+                       color:#f5f0e8;font-size:14px;padding:11px 13px;outline:none;
+                       font-family:'EB Garamond',serif;resize:vertical;box-sizing:border-box"
+                onfocus="this.style.borderColor='#c9a84c'"
+                onblur="this.style.borderColor='rgba(201,168,76,0.2)'"
+                placeholder="Escribe la historia del artista..."></textarea>
+    </div>
+
+    <button onclick="guardarPerfil()"
+            style="width:100%;font-family:'Cinzel',serif;font-size:11px;
+                   letter-spacing:3px;text-transform:uppercase;padding:16px;
+                   background:#c9a84c;border:none;color:#0d0b08;cursor:pointer;
+                   font-weight:700;transition:all 0.2s;border-radius:2px"
+            onmouseover="this.style.background='#e8c97a'"
+            onmouseout="this.style.background='#c9a84c'">
+      ✓ Guardar perfil
+    </button>
+    <div id="msg-perfil" style="display:none;margin-top:10px;text-align:center;
+                                 font-size:14px;padding:10px;border-radius:2px"></div>
   </div>
 
   <!-- ═══ TAB OBRAS ═══ -->
@@ -2161,9 +2330,17 @@ body.lang-en span[data-lang="es"] { display: none; }
 
     <!-- LISTA DE OBRAS PUBLICADAS -->
     <div>
-      <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
-                color:#c9a84c;opacity:0.7;margin-bottom:14px;text-transform:uppercase">
-        📋 Obras publicadas</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
+                  color:#c9a84c;opacity:0.7;text-transform:uppercase">📋 Obras publicadas</p>
+        <button onclick="abrirGestionCategorias()"
+                style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;
+                       padding:5px 10px;background:rgba(201,168,76,0.08);
+                       border:1px solid rgba(201,168,76,0.2);color:#c9a84c;
+                       cursor:pointer;border-radius:2px;text-transform:uppercase">
+          🗂️ Categorías
+        </button>
+      </div>
       <div id="admin-obras-lista" style="display:flex;flex-direction:column;gap:10px">
         <!-- Se llena dinámicamente -->
       </div>
@@ -2215,18 +2392,7 @@ body.lang-en span[data-lang="es"] { display: none; }
                onfocus="this.style.borderColor='#c9a84c'"
                onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
       </div>
-      <div>
-        <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
-                      letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
-          ✉️ CORREO ELECTRÓNICO</label>
-        <input type="email" id="ed-email"
-               style="width:100%;background:#1a1710;border:1px solid rgba(201,168,76,0.2);
-                      color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
-                      font-family:'EB Garamond',serif;box-sizing:border-box"
-               placeholder="artealquimico@gmail.com"
-               onfocus="this.style.borderColor='#c9a84c'"
-               onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
-      </div>
+
       <button onclick="guardarContacto()"
               style="width:100%;font-family:'Cinzel',serif;font-size:11px;
                      letter-spacing:3px;text-transform:uppercase;padding:15px;
@@ -2252,25 +2418,39 @@ body.lang-en span[data-lang="es"] { display: none; }
         <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
                       letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
           NUEVA CONTRASEÑA (mínimo 6 caracteres)</label>
-        <input type="password" id="ed-newpass"
-               style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
-                      color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
-                      font-family:'EB Garamond',serif;box-sizing:border-box"
-               placeholder="Nueva contraseña"
-               onfocus="this.style.borderColor='#c9a84c'"
-               onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+        <div style="position:relative">
+          <input type="password" id="ed-newpass"
+                 style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
+                        color:#f5f0e8;font-size:15px;padding:11px 44px 11px 13px;outline:none;
+                        font-family:'EB Garamond',serif;box-sizing:border-box"
+                 placeholder="Nueva contraseña"
+                 onfocus="this.style.borderColor='#c9a84c'"
+                 onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+          <button type="button" onclick="toggleVerPass('ed-newpass', this)"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                         background:none;border:none;cursor:pointer;color:#c9a84c;
+                         opacity:0.6;padding:4px;font-size:16px;line-height:1"
+                  title="Ver contraseña">👁️</button>
+        </div>
       </div>
       <div>
         <label style="display:block;font-family:'Cinzel',serif;font-size:9px;
                       letter-spacing:2px;color:#c9a84c;margin-bottom:7px">
           CONFIRMAR CONTRASEÑA</label>
-        <input type="password" id="ed-newpass2"
-               style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
-                      color:#f5f0e8;font-size:15px;padding:11px 13px;outline:none;
-                      font-family:'EB Garamond',serif;box-sizing:border-box"
-               placeholder="Repite la contraseña"
-               onfocus="this.style.borderColor='#c9a84c'"
-               onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+        <div style="position:relative">
+          <input type="password" id="ed-newpass2"
+                 style="width:100%;background:#0d0b08;border:1px solid rgba(201,168,76,0.2);
+                        color:#f5f0e8;font-size:15px;padding:11px 44px 11px 13px;outline:none;
+                        font-family:'EB Garamond',serif;box-sizing:border-box"
+                 placeholder="Repite la contraseña"
+                 onfocus="this.style.borderColor='#c9a84c'"
+                 onblur="this.style.borderColor='rgba(201,168,76,0.2)'"/>
+          <button type="button" onclick="toggleVerPass('ed-newpass2', this)"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                         background:none;border:none;cursor:pointer;color:#c9a84c;
+                         opacity:0.6;padding:4px;font-size:16px;line-height:1"
+                  title="Ver contraseña">👁️</button>
+        </div>
       </div>
       <button onclick="changePassword()"
               style="width:100%;font-family:'Cinzel',serif;font-size:11px;
@@ -2294,112 +2474,8 @@ body.lang-en span[data-lang="es"] { display: none; }
   </div>
 </div>
 
-<div id="panel-overlay" onclick="closeAdmin()"
+<div id="panel-overlay"
      style="display:none;position:fixed;inset:0;z-index:5400;background:rgba(0,0,0,0.5)"></div>
-
-<!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBjUdBpwW6g6zZ5jC5c_AyUwClUy79sc6Y",
-    authDomain: "artealquimico-1e583.firebaseapp.com",
-    projectId: "artealquimico-1e583",
-    storageBucket: "artealquimico-1e583.firebasestorage.app",
-    messagingSenderId: "665117901237",
-    appId: "1:665117901237:web:21ecaa03595d30992fd9fc"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const CLOUD_NAME = 'dwzqne2ll';
-  const UPLOAD_PRESET = 'artealquimico';
-
-  window.fbUploadImage = async function(file) {
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('upload_preset', UPLOAD_PRESET);
-    fd.append('folder', 'artealquimico');
-    const res = await fetch('https://api.cloudinary.com/v1_1/' + CLOUD_NAME + '/image/upload', { method:'POST', body:fd });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
-    return data.secure_url;
-  };
-
-  window.fbGuardarObra = async function(obra) {
-    const id = String(obra.id);
-    await setDoc(doc(db, 'obras', id), Object.assign({}, obra, {id: id}));
-  };
-
-  window.fbEliminarObra = async function(id) {
-    await deleteDoc(doc(db, 'obras', String(id)));
-  };
-
-  window.fbActualizarObra = async function(id, datos) {
-    const idStr = String(id);
-    await setDoc(doc(db, 'obras', idStr), Object.assign({}, datos, {id: idStr}));
-  };
-
-  window.fbGuardarConfig = async function(cfg) {
-    await setDoc(doc(db, 'config', 'principal'), cfg);
-  };
-
-  window.fbCargarConfig = async function() {
-    const snap = await getDoc(doc(db, 'config', 'principal'));
-    return snap.exists() ? snap.data() : {};
-  };
-
-  window.fbGuardarRating = async function(obraId, rating) {
-    await addDoc(collection(db, 'ratings'), Object.assign({obraId: String(obraId)}, rating));
-  };
-
-  window.fbCargarRatings = async function() {
-    const snap = await getDocs(collection(db, 'ratings'));
-    const result = {};
-    snap.docs.forEach(d => {
-      const r = d.data();
-      const key = String(r.obraId);
-      if (!result[key]) result[key] = [];
-      result[key].push(r);
-    });
-    return result;
-  };
-
-  window.fbInit = async function() {
-    try {
-      // Config en tiempo real
-      onSnapshot(doc(db, 'config', 'principal'), function(snap) {
-        if (snap.exists()) aplicarConfigFirebase(snap.data());
-      });
-
-      // Obras en tiempo real
-      onSnapshot(collection(db, 'obras'), function(snap) {
-        var obrasFirebase = snap.docs.map(function(d) { return d.data(); });
-        obrasFirebase.sort(function(a,b) { return Number(a.id) - Number(b.id); });
-        // Limpiar DOM
-        document.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(el) { el.remove(); });
-        // Redibujar
-        obrasFirebase.forEach(function(obra) { renderObra(obra); });
-        actualizarEmptyState();
-        if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
-      });
-
-    } catch(e) {
-      console.log('Firebase error, fallback localStorage:', e);
-      loadObras().forEach(function(o) { renderObra(o); });
-      actualizarEmptyState();
-    }
-  };
-
-  // Inicializar cuando el DOM esté listo
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { window.fbInit(); });
-  } else {
-    window.fbInit();
-  }
-</script>
-
 
 <script>
 // ════════════════════════════════════
@@ -2475,6 +2551,7 @@ function sendForm(e) {
 // ════════════════════════════════════
 // STORAGE
 // ════════════════════════════════════
+var adminActivo = false;
 var CONFIG_KEY = 'artealq_config';
 var OBRAS_KEY = 'artealq_obras';
 var RATINGS_KEY = 'artealq_ratings';
@@ -2497,33 +2574,24 @@ function saveRatings(r) { localStorage.setItem(RATINGS_KEY, JSON.stringify(r)); 
 // ════════════════════════════════════
 // INICIALIZAR CONFIG AL CARGAR
 // ════════════════════════════════════
-(function initConfig() {
-  var cfg = loadConfig();
+// Aplicar config a la página
+function aplicarConfigFirebase(cfg) {
+  if (!cfg) return;
   if (cfg.whatsapp) {
     document.querySelectorAll('a[href*="wa.me"]').forEach(function(a) {
       a.href = a.href.replace(/wa\.me\/[^?]+/, 'wa.me/' + cfg.whatsapp);
     });
   }
-  if (cfg.facebook) {
-    document.querySelectorAll('a[href*="facebook.com/artealquimico"]').forEach(function(a) { a.href = cfg.facebook; });
-  }
-  if (cfg.instagram) {
-    document.querySelectorAll('a[href*="instagram.com/artealquimico"]').forEach(function(a) { a.href = cfg.instagram; });
-  }
-  if (cfg.taglineEs) {
-    document.querySelectorAll('.hero-tagline[data-lang="es"]').forEach(function(el) { el.textContent = cfg.taglineEs; });
-  }
-  if (cfg.taglineEn) {
-    document.querySelectorAll('.hero-tagline[data-lang="en"]').forEach(function(el) { el.textContent = cfg.taglineEn; });
-  }
-  // Perfil foto
+  if (cfg.facebook) document.querySelectorAll('a[href*="facebook.com/artealquimico"]').forEach(function(a) { a.href = cfg.facebook; });
+  if (cfg.instagram) document.querySelectorAll('a[href*="instagram.com/artealquimico"]').forEach(function(a) { a.href = cfg.instagram; });
+  if (cfg.taglineEs) document.querySelectorAll('.hero-tagline[data-lang="es"]').forEach(function(el) { el.textContent = cfg.taglineEs; });
+  if (cfg.taglineEn) document.querySelectorAll('.hero-tagline[data-lang="en"]').forEach(function(el) { el.textContent = cfg.taglineEn; });
   if (cfg.perfilFoto) {
     var ph = document.getElementById('portrait-placeholder-box');
     var img = document.getElementById('portrait-img');
     if (ph) ph.style.display = 'none';
     if (img) { img.src = cfg.perfilFoto; img.style.display = 'block'; }
   }
-  // Bio texto
   if (cfg.bioTexto) {
     var bioBox = document.getElementById('bio-texto-es');
     if (bioBox) {
@@ -2532,9 +2600,15 @@ function saveRatings(r) { localStorage.setItem(RATINGS_KEY, JSON.stringify(r)); 
       }).join('');
     }
   }
-  // Renderizar obras guardadas
-  loadObras().forEach(function(o) { renderObra(o); });
-  actualizarEmptyState();
+  if (cfg.cardNombre) { var cn = document.getElementById('card-nombre'); if (cn) cn.textContent = cfg.cardNombre; }
+  if (cfg.cardSubtitulo) { var cs = document.getElementById('card-subtitulo'); if (cs) cs.textContent = cfg.cardSubtitulo; }
+}
+
+(function initConfig() {
+  // Firebase se inicializa por separado via fbInit()
+  // Aquí solo aplicamos localStorage como fallback inmediato
+  var cfg = loadConfig();
+  aplicarConfigFirebase(cfg);
 })();
 
 // ════════════════════════════════════
@@ -2556,6 +2630,11 @@ function renderObra(obra) {
     ? '<div style="position:absolute;top:12px;left:12px;background:rgba(240,96,96,0.9);color:#fff;font-family:Cinzel,serif;font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:2px;z-index:2">🔴 VENDIDA</div>'
     : '<div style="position:absolute;top:12px;left:12px;background:rgba(93,222,138,0.85);color:#0d0b08;font-family:Cinzel,serif;font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:2px;z-index:2">🟢 DISPONIBLE</div>';
 
+  var adminBtns = '<div class="obra-admin-btns" style="display:none;position:absolute;top:10px;right:10px;z-index:5;gap:6px">' +
+    '<button onclick="abrirEditarObra(' + obra.id + ')" style="background:#22c55e;border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5)" title="Editar">&#9998;</button>' +
+    '<button onclick="eliminarObraDirecto(' + obra.id + ')" style="background:#ef4444;border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5)" title="Borrar">&#128465;</button>' +
+    '</div>';
+
   var starsHtml = '';
   for (var i = 1; i <= 5; i++) {
     var color = (avg && i <= Math.round(parseFloat(avg))) ? '#c9a84c' : '#3a3530';
@@ -2570,7 +2649,11 @@ function renderObra(obra) {
     ? '<button onclick="openArtistCard()" style="display:block;width:100%;text-align:center;font-family:Cinzel,serif;font-size:10px;letter-spacing:3px;text-transform:uppercase;padding:10px;border:1px solid var(--gold);color:var(--gold);background:transparent;cursor:pointer;margin-top:12px;box-sizing:border-box;transition:all 0.3s" onmouseover="this.style.background=\'var(--gold)\';this.style.color=\'var(--ink)\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'var(--gold)\'">📩 Consultar / Adquirir</button>'
     : '';
 
-  el.innerHTML = badge +
+  // Si admin está activo, mostrar botones inmediatamente
+  if (adminActivo) {
+    adminBtns = adminBtns.replace('display:none', 'display:flex');
+  }
+  el.innerHTML = badge + adminBtns +
     '<img class="gallery-img" src="' + obra.src + '" alt="' + (obra.titulo || 'Obra') + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block;filter:sepia(10%)">' +
     '<div style="padding:16px;background:var(--ink3)">' +
       '<p style="font-family:Cinzel,serif;font-size:13px;letter-spacing:1px;color:var(--gold-light);margin-bottom:4px">' + (obra.titulo || 'Sin título') + '</p>' +
@@ -2584,6 +2667,14 @@ function renderObra(obra) {
       '</div>' +
       consultarBtn +
     '</div>';
+
+  // Evento consultar btn
+  var consultarBtnEl = el.querySelector('.consultar-btn');
+  if (consultarBtnEl) {
+    consultarBtnEl.addEventListener('mouseover', function() { this.style.background = 'var(--gold)'; this.style.color = 'var(--ink)'; });
+    consultarBtnEl.addEventListener('mouseout', function() { this.style.background = 'transparent'; this.style.color = 'var(--gold)'; });
+    consultarBtnEl.addEventListener('click', function() { openArtistCard(); });
+  }
 
   // Eventos estrellas
   var starsContainer = el.querySelector('.obra-stars');
@@ -2748,12 +2839,40 @@ function hideAdminLogin() {
 function doLogin() {
   var user = document.getElementById('admin-user') ? document.getElementById('admin-user').value.trim() : '';
   var pass = document.getElementById('admin-pass') ? document.getElementById('admin-pass').value : '';
-  var cfg = loadConfig();
-  var okUser = cfg.adminUser || DEFAULT_USER;
-  var okPass = cfg.adminPass || DEFAULT_PASS;
-  if (user === okUser && pass === okPass) {
-    hideAdminLogin();
-    openAdmin();
+
+  var intentarLogin = function(cfg) {
+    var okUser = cfg.adminUser || DEFAULT_USER;
+    var okPass = cfg.adminPass || DEFAULT_PASS;
+    if (user === okUser && pass === okPass) {
+      // Guardar en localStorage para próxima vez
+      saveConfig(cfg);
+      hideAdminLogin();
+      openAdmin();
+      return true;
+    }
+    return false;
+  };
+
+  // Primero intentar con localStorage
+  var cfgLocal = loadConfig();
+  if (intentarLogin(cfgLocal)) return;
+
+  // Si falla, intentar con Firebase (por si cambió desde otro dispositivo)
+  if (window.fbCargarConfig) {
+    window.fbCargarConfig().then(function(cfgFirebase) {
+      if (!intentarLogin(cfgFirebase)) {
+        // Ninguno funcionó — credenciales incorrectas
+        var err = document.getElementById('login-error');
+        if (err) err.style.display = 'block';
+        var p = document.getElementById('admin-pass');
+        if (p) { p.value = ''; p.focus(); }
+      }
+    }).catch(function() {
+      var err = document.getElementById('login-error');
+      if (err) err.style.display = 'block';
+      var p = document.getElementById('admin-pass');
+      if (p) { p.value = ''; p.focus(); }
+    });
   } else {
     var err = document.getElementById('login-error');
     if (err) err.style.display = 'block';
@@ -2789,6 +2908,12 @@ function openAdmin() {
   var overlay = document.getElementById('panel-overlay');
   if (panel) panel.style.display = 'block';
   if (overlay) overlay.style.display = 'block';
+  adminActivo = true;
+  mostrarBotonesAdmin(true);
+  // Delays múltiples para cubrir obras que llegan async de Firebase
+  setTimeout(function() { mostrarBotonesAdmin(true); }, 500);
+  setTimeout(function() { mostrarBotonesAdmin(true); }, 1500);
+  setTimeout(function() { mostrarBotonesAdmin(true); }, 3000);
   showTab('tab-obras');
   renderAdminLista();
 }
@@ -2798,6 +2923,16 @@ function closeAdmin() {
   var overlay = document.getElementById('panel-overlay');
   if (panel) panel.style.display = 'none';
   if (overlay) overlay.style.display = 'none';
+  adminActivo = false;
+  mostrarBotonesAdmin(false);
+}
+
+function mostrarBotonesAdmin(mostrar) {
+  document.querySelectorAll('.obra-admin-btns').forEach(function(el) {
+    el.style.display = mostrar ? 'flex' : 'none';
+  });
+  // También actualizar obras que lleguen después (Firebase async)
+  adminActivo = mostrar;
 }
 
 // ─── Tabs ────────────────────────────────────────────────────────────────
@@ -2862,30 +2997,37 @@ function limpiarPerfil() {
 
 function guardarPerfil() {
   var cfg = loadConfig();
-  if (fotoPerfil) cfg.perfilFoto = fotoPerfil;
+  var filePerfilInput = document.getElementById('file-perfil');
+  var archivoPerfilReal = filePerfilInput && filePerfilInput.files[0] ? filePerfilInput.files[0] : null;
   var nombre = document.getElementById('perfil-nombre') ? document.getElementById('perfil-nombre').value.trim() : '';
   var subtitulo = document.getElementById('perfil-subtitulo') ? document.getElementById('perfil-subtitulo').value.trim() : '';
   var bio = document.getElementById('perfil-bio') ? document.getElementById('perfil-bio').value.trim() : '';
-  if (nombre) cfg.cardNombre = nombre;
-  if (subtitulo) cfg.cardSubtitulo = subtitulo;
-  if (bio) cfg.bioTexto = bio;
-  saveConfig(cfg);
 
-  if (fotoPerfil) {
-    var ph = document.getElementById('portrait-placeholder-box');
-    var img = document.getElementById('portrait-img');
-    if (ph) ph.style.display = 'none';
-    if (img) { img.src = fotoPerfil; img.style.display = 'block'; }
-  }
-  if (bio) {
-    var bioBox = document.getElementById('bio-texto-es');
-    if (bioBox) {
-      bioBox.innerHTML = bio.split('\n\n').map(function(p) {
-        return '<p data-lang="es" style="font-size:17px;line-height:1.9;color:var(--parch2);opacity:0.85;margin-bottom:20px">' + p + '</p>';
-      }).join('');
+  var subirFotoPerfil = function() {
+    if (archivoPerfilReal && window.fbUploadImage) {
+      mostrarMsg('msg-perfil', '⏳ Subiendo foto...', false);
+      return window.fbUploadImage(archivoPerfilReal);
     }
-  }
-  mostrarMsg('msg-perfil', '✅ Perfil actualizado!');
+    return Promise.resolve(fotoPerfil);
+  };
+
+  subirFotoPerfil().then(function(urlFoto) {
+    if (urlFoto) cfg.perfilFoto = urlFoto;
+    if (nombre) cfg.cardNombre = nombre;
+    if (subtitulo) cfg.cardSubtitulo = subtitulo;
+    if (bio) cfg.bioTexto = bio;
+    saveConfig(cfg);
+    aplicarConfigFirebase(cfg);
+    if (window.fbGuardarConfig) {
+      window.fbGuardarConfig(cfg).then(function() {
+        mostrarMsg('msg-perfil', '✅ Perfil guardado en todos los dispositivos!');
+      }).catch(function() {
+        mostrarMsg('msg-perfil', '✅ Perfil guardado!');
+      });
+    } else {
+      mostrarMsg('msg-perfil', '✅ Perfil actualizado!');
+    }
+  });
 }
 
 // ════════════════════════════════════
@@ -2953,26 +3095,61 @@ function guardarObra() {
   }
   var desc = document.getElementById('obra-desc') ? document.getElementById('obra-desc').value.trim() : '';
   var precio = document.getElementById('obra-precio') ? document.getElementById('obra-precio').value.trim() : '';
+  var fileInput = document.getElementById('file-obra');
+  var archivoReal = fileInput && fileInput.files[0] ? fileInput.files[0] : null;
 
   if (!fotoObraData) { alert('Por favor selecciona una foto para la obra.'); return; }
   if (!titulo) { alert('Por favor escribe el título de la obra.'); return; }
   if (!cat) { alert('Por favor selecciona la técnica.'); return; }
 
-  var obra = { id: Date.now(), titulo: titulo, categoria: cat, desc: desc, precio: precio || 'Consultar', estado: estadoSeleccionado, src: fotoObraData };
-  var obras = loadObras();
-  obras.push(obra);
-  saveObras(obras);
-  renderObra(obra);
-  actualizarEmptyState();
-  renderAdminLista();
+  mostrarMsg('msg-obra', '⏳ Subiendo imagen...', false);
 
-  // Limpiar
-  var fields = ['obra-titulo', 'obra-desc', 'obra-precio'];
-  fields.forEach(function(f) { var el = document.getElementById(f); if (el) el.value = ''; });
-  if (catSel) catSel.value = '';
-  limpiarFotoObra();
-  selectEstado('stock');
-  mostrarMsg('msg-obra', '✅ Obra publicada correctamente!');
+  var obraId = Date.now();
+
+  // Intentar subir a Cloudinary si hay archivo real
+  var subirFoto = function() {
+    if (archivoReal && window.fbUploadImage) {
+      return window.fbUploadImage(archivoReal);
+    }
+    return Promise.resolve(fotoObraData); // fallback base64
+  };
+
+  subirFoto().then(function(srcUrl) {
+    var obra = {
+      id: obraId,
+      titulo: titulo,
+      categoria: cat,
+      desc: desc,
+      precio: precio || 'Consultar',
+      estado: estadoSeleccionado,
+      src: srcUrl,
+      orden: obraId
+    };
+
+    // Guardar en Firebase
+    var guardarEnFirebase = window.fbGuardarObra ? window.fbGuardarObra(obra) : Promise.resolve();
+    guardarEnFirebase.then(function() {
+      // También guardar en localStorage como backup
+      var obras = loadObras();
+      obras.push(obra);
+      saveObras(obras);
+      renderObra(obra);
+      actualizarEmptyState();
+      renderAdminLista();
+      var fields = ['obra-titulo', 'obra-desc', 'obra-precio'];
+      fields.forEach(function(f) { var el = document.getElementById(f); if (el) el.value = ''; });
+      if (catSel) catSel.value = '';
+      limpiarFotoObra();
+      selectEstado('stock');
+      mostrarMsg('msg-obra', '✅ Obra publicada en todos los dispositivos!');
+    }).catch(function(e) {
+      console.error(e);
+      mostrarMsg('msg-obra', '✅ Obra guardada localmente!');
+    });
+  }).catch(function(e) {
+    console.error(e);
+    mostrarMsg('msg-obra', '❌ Error al subir imagen. Intenta de nuevo.', true);
+  });
 }
 
 function agregarFiltro(cat) {
@@ -3022,21 +3199,19 @@ function toggleEstadoObra(id) {
   renderAdminLista();
 }
 
+function eliminarObraDirecto(id) {
+  if (!confirm('¿Eliminar esta obra de la galería?')) return;
+  eliminarObra(id);
+}
+
 function eliminarObra(id) {
-  // Quitar del localStorage
   saveObras(loadObras().filter(function(o) { return o.id !== id; }));
-  // Quitar del DOM local inmediatamente
   var el = document.querySelector('[data-obra-id="' + id + '"]');
   if (el) el.remove();
   actualizarEmptyState();
   renderAdminLista();
-  // Eliminar en Firebase → onSnapshot propaga el cambio a TODOS los dispositivos
   if (window.fbEliminarObra) {
-    window.fbEliminarObra(id).then(function() {
-      console.log('Obra eliminada de Firebase:', id);
-    }).catch(function(e) {
-      console.error('Error eliminando de Firebase:', e);
-    });
+    window.fbEliminarObra(id).catch(function(e) { console.error(e); });
   }
 }
 
@@ -3050,8 +3225,18 @@ function guardarContacto() {
   cfg.facebook = getVal('ed-facebook');
   cfg.instagram = getVal('ed-instagram');
   saveConfig(cfg);
-  mostrarMsg('msg-contacto', '✅ Guardado! Recargando...');
-  setTimeout(function() { location.reload(); }, 1200);
+  if (window.fbGuardarConfig) {
+    window.fbGuardarConfig(cfg).then(function() {
+      mostrarMsg('msg-contacto', '✅ Guardado en todos los dispositivos!');
+      setTimeout(function() { location.reload(); }, 1200);
+    }).catch(function() {
+      mostrarMsg('msg-contacto', '✅ Guardado localmente!');
+      setTimeout(function() { location.reload(); }, 1200);
+    });
+  } else {
+    mostrarMsg('msg-contacto', '✅ Guardado!');
+    setTimeout(function() { location.reload(); }, 1200);
+  }
 }
 
 // ════════════════════════════════════
@@ -3066,7 +3251,16 @@ function changePassword() {
   cfg.adminUser = cfg.adminUser || DEFAULT_USER;
   cfg.adminPass = p1;
   saveConfig(cfg);
-  mostrarMsg('pass-msg', '✅ Contraseña actualizada!');
+  // Guardar en Firebase para que funcione en todos los dispositivos
+  if (window.fbGuardarConfig) {
+    window.fbGuardarConfig(cfg).then(function() {
+      mostrarMsg('pass-msg', '✅ Contraseña actualizada en todos los dispositivos!');
+    }).catch(function() {
+      mostrarMsg('pass-msg', '✅ Contraseña actualizada!');
+    });
+  } else {
+    mostrarMsg('pass-msg', '✅ Contraseña actualizada!');
+  }
   var n1 = document.getElementById('ed-newpass'); if (n1) n1.value = '';
   var n2 = document.getElementById('ed-newpass2'); if (n2) n2.value = '';
 }
@@ -3122,15 +3316,36 @@ function renderCategoriasAdmin() {
   var labels = { cafe: 'Tecnica en Café Soluble', pintura: 'Pintura al Óleo / Acrílico', grabado: 'Grabado / Xilografía', escultura: 'Escultura', dibujo: 'Dibujo / Ilustración' };
   var cont = document.getElementById('cats-lista');
   if (!cont) return;
-  cont.innerHTML = cats.map(function(c) {
+  cont.innerHTML = '';
+  cats.forEach(function(c) {
     var count = obras.filter(function(o) { return o.categoria === c; }).length;
     var esFija = fijas.indexOf(c) !== -1;
     var nombre = labels[c] || (c.charAt(0).toUpperCase() + c.slice(1));
-    var btns = esFija
-      ? '<span style="font-size:10px;color:#c9a84c;opacity:0.35;font-style:italic">predefinida</span>'
-      : '<button onclick="renombrarCategoria(\'' + c + '\')" style="background:transparent;border:1px solid rgba(201,168,76,0.3);color:#c9a84c;padding:5px 8px;cursor:pointer;font-size:11px;border-radius:2px">✏️</button><button onclick="eliminarCategoria(\'' + c + '\')" style="background:rgba(240,96,96,0.08);border:1px solid rgba(240,96,96,0.2);color:#f06060;padding:5px 8px;cursor:pointer;font-size:11px;border-radius:2px">🗑️</button>';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#0d0b08;border:1px solid rgba(201,168,76,0.1);border-radius:4px;margin-bottom:8px"><div style="flex:1"><p style="font-family:Cinzel,serif;font-size:12px;color:#e8c97a">' + nombre + '</p><p style="font-size:11px;color:#f5f0e8;opacity:0.4;margin-top:2px">' + count + ' obra' + (count !== 1 ? 's' : '') + '</p></div>' + btns + '</div>';
-  }).join('');
+    var div = document.createElement('div');
+    div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px;background:#0d0b08;border:1px solid rgba(201,168,76,0.1);border-radius:4px;margin-bottom:8px';
+    var info = document.createElement('div');
+    info.style.flex = '1';
+    info.innerHTML = '<p style="font-family:Cinzel,serif;font-size:12px;color:#e8c97a">' + nombre + '</p><p style="font-size:11px;color:#f5f0e8;opacity:0.4;margin-top:2px">' + count + ' obra' + (count !== 1 ? 's' : '') + '</p>';
+    div.appendChild(info);
+    if (esFija) {
+      var sp = document.createElement('span');
+      sp.style.cssText = 'font-size:10px;color:#c9a84c;opacity:0.35;font-style:italic';
+      sp.textContent = 'predefinida';
+      div.appendChild(sp);
+    } else {
+      var btnEdit = document.createElement('button');
+      btnEdit.textContent = '✏️';
+      btnEdit.style.cssText = 'background:transparent;border:1px solid rgba(201,168,76,0.3);color:#c9a84c;padding:5px 8px;cursor:pointer;font-size:11px;border-radius:2px';
+      btnEdit.onclick = (function(cat){ return function(){ renombrarCategoria(cat); }; })(c);
+      var btnDel = document.createElement('button');
+      btnDel.textContent = '🗑️';
+      btnDel.style.cssText = 'background:rgba(240,96,96,0.08);border:1px solid rgba(240,96,96,0.2);color:#f06060;padding:5px 8px;cursor:pointer;font-size:11px;border-radius:2px';
+      btnDel.onclick = (function(cat){ return function(){ eliminarCategoria(cat); }; })(c);
+      div.appendChild(btnEdit);
+      div.appendChild(btnDel);
+    }
+    cont.appendChild(div);
+  });
 }
 function renombrarCategoria(viejo) {
   var nuevo = prompt('Nuevo nombre para "' + viejo + '":', viejo);
@@ -3205,10 +3420,14 @@ function guardarEdicionObra() {
   var estadoEl = document.getElementById('edit-estado'); if (estadoEl) obras[idx].estado = estadoEl.value;
   var catEl = document.getElementById('edit-categoria'); if (catEl) obras[idx].categoria = catEl.value;
   saveObras(obras);
+  var obraEditada = obras[idx];
   var el = document.querySelector('[data-obra-id="' + editandoObraId + '"]');
-  if (el) { el.remove(); renderObra(obras[idx]); }
+  if (el) { el.remove(); renderObra(obraEditada); }
   renderAdminLista();
   cerrarEditarObra();
+  if (window.fbActualizarObra) {
+    window.fbActualizarObra(editandoObraId, obraEditada).catch(function(e) { console.error(e); });
+  }
 }
 
 // ════════════════════════════════════
@@ -3222,6 +3441,52 @@ function mostrarMsg(id, texto, esError) {
   el.style.color = esError ? '#f06060' : '#5dde8a';
   el.textContent = texto;
   setTimeout(function() { el.style.display = 'none'; }, 3000);
+}
+
+// ════════════════════════════════════
+// VER PÁGINA / VOLVER AL PANEL / CERRAR SESIÓN
+// ════════════════════════════════════
+function verPagina() {
+  var panel = document.getElementById('admin-panel');
+  var overlay = document.getElementById('panel-overlay');
+  var btnVolver = document.getElementById('btn-volver-panel');
+  if (panel) panel.style.display = 'none';
+  if (overlay) overlay.style.display = 'none';
+  if (btnVolver) btnVolver.style.display = 'block';
+  // Scroll suave al inicio
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function volverPanel() {
+  var panel = document.getElementById('admin-panel');
+  var overlay = document.getElementById('panel-overlay');
+  var btnVolver = document.getElementById('btn-volver-panel');
+  if (panel) panel.style.display = 'block';
+  if (overlay) overlay.style.display = 'block';
+  if (btnVolver) btnVolver.style.display = 'none';
+}
+
+function cerrarSesion() {
+  if (!confirm('¿Cerrar sesión de administrador?')) return;
+  closeAdmin();
+  adminActivo = false;
+  mostrarBotonesAdmin(false);
+  var btnVolver = document.getElementById('btn-volver-panel');
+  if (btnVolver) btnVolver.style.display = 'none';
+}
+
+function toggleVerPass(inputId, btn) {
+  var input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+    btn.style.opacity = '1';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+    btn.style.opacity = '0.6';
+  }
 }
 
 </script>
