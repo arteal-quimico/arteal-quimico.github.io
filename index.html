@@ -245,12 +245,26 @@ body.lang-en span[data-lang="es"] { display: none; }
 
   window.fbEliminarObra = async function(id) {
     var idStr = String(id);
-    console.log('[Firebase] Intentando borrar obra con ID:', idStr);
+    console.log('[Firebase] Borrando ID:', idStr);
+
+    // Método 1: SDK deleteDoc
     try {
-      await deleteDoc(doc(db, 'obras', idStr));
-      console.log('[Firebase] ✅ Obra borrada exitosamente:', idStr);
+      const docRef = doc(db, 'obras', idStr);
+      await deleteDoc(docRef);
+      console.log('[Firebase] ✅ deleteDoc OK:', idStr);
+
+      // Verificar que realmente se borró
+      const verificacion = await getDoc(docRef);
+      if (verificacion.exists()) {
+        console.warn('[Firebase] ⚠️ El documento aún existe después de deleteDoc!');
+        // Intentar de nuevo
+        await deleteDoc(docRef);
+        console.log('[Firebase] 2do intento deleteDoc');
+      } else {
+        console.log('[Firebase] ✅ Verificado: documento eliminado de Firestore');
+      }
     } catch(e) {
-      console.error('[Firebase] ❌ Error al borrar obra:', idStr, e);
+      console.error('[Firebase] ❌ Error deleteDoc:', e);
       throw e;
     }
   };
@@ -1480,31 +1494,37 @@ function toggleEstadoObra(id) {
 function eliminarObraDirecto(id) {
   if (!confirm('¿Eliminar esta obra de la galería?')) return;
 
-  // TEST DIRECTO: intentar borrar y mostrar resultado claramente
   if (!window.fbEliminarObra) {
     alert('❌ Firebase no está cargado. Recarga la página.');
     return;
   }
 
-  var idStr = String(id);
-  console.log('Borrando ID:', idStr, 'tipo:', typeof id);
-
-  // Animar el elemento
+  // Leer ID exacto del DOM para evitar conversiones de tipo
   var el = document.querySelector('[data-obra-id="' + id + '"]');
+  if (!el) {
+    // Buscar por cualquier variante del ID
+    document.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(item) {
+      if (String(item.dataset.obraId) === String(id)) el = item;
+    });
+  }
+
+  // El ID exacto que está en Firestore
+  var idFirestore = el ? String(el.dataset.obraId) : String(id);
+  console.log('Borrando de Firestore, ID exacto:', idFirestore, '| ID recibido:', id, '| tipo:', typeof id);
+
   if (el) { el.style.opacity = '0.3'; }
 
-  window.fbEliminarObra(id)
+  window.fbEliminarObra(idFirestore)
     .then(function() {
-      console.log('✅ Firebase confirmó borrado de:', idStr);
-      // Forzar borrado del DOM inmediatamente
+      console.log('✅ Borrado confirmado por Firebase:', idFirestore);
       if (el && el.parentNode) el.remove();
       actualizarEmptyState();
       renderAdminLista();
     })
     .catch(function(e) {
-      console.error('❌ Firebase rechazó borrado:', e);
+      console.error('❌ Error Firebase:', e);
       if (el) { el.style.opacity = '1'; }
-      alert('❌ Error de Firebase: ' + e.code + '\n' + e.message);
+      alert('❌ Error: ' + e.code + ' — ' + e.message);
     });
 }
 
@@ -1517,15 +1537,25 @@ function eliminarObra(id) {
     setTimeout(function() { if (el.parentNode) el.remove(); actualizarEmptyState(); }, 300);
   }
   // Firebase es la fuente de verdad — onSnapshot 'removed' confirmará en todos los dispositivos
+  // Buscar el ID exacto del DOM
+  var elBorrar = document.querySelector('[data-obra-id="' + id + '"]');
+  if (!elBorrar) {
+    document.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(item) {
+      if (String(item.dataset.obraId) === String(id)) elBorrar = item;
+    });
+  }
+  var idFirestore = elBorrar ? String(elBorrar.dataset.obraId) : String(id);
+  console.log('eliminarObra — ID Firestore:', idFirestore);
+
   if (window.fbEliminarObra) {
-    window.fbEliminarObra(id).then(function() {
-      console.log('Obra borrada de Firebase OK, esperando onSnapshot...');
+    window.fbEliminarObra(idFirestore).then(function() {
+      console.log('✅ Borrado OK:', idFirestore);
     }).catch(function(e) {
-      console.error('Error al borrar en Firebase:', e);
-      alert('Error al borrar: ' + e.message + '\nRevisa la consola del navegador.');
+      console.error('❌ Error borrar Firebase:', e);
+      alert('Error al borrar: ' + e.message);
     });
   } else {
-    alert('Firebase no está disponible. Recarga la página e intenta de nuevo.');
+    alert('Firebase no disponible. Recarga la página.');
   }
   renderAdminLista();
 }
