@@ -244,7 +244,15 @@ body.lang-en span[data-lang="es"] { display: none; }
   };
 
   window.fbEliminarObra = async function(id) {
-    await deleteDoc(doc(db, 'obras', String(id)));
+    var idStr = String(id);
+    console.log('[Firebase] Intentando borrar obra con ID:', idStr);
+    try {
+      await deleteDoc(doc(db, 'obras', idStr));
+      console.log('[Firebase] ✅ Obra borrada exitosamente:', idStr);
+    } catch(e) {
+      console.error('[Firebase] ❌ Error al borrar obra:', idStr, e);
+      throw e;
+    }
   };
 
   window.fbActualizarObra = async function(id, datos) {
@@ -1370,7 +1378,7 @@ function guardarObra() {
   if (!titulo) { alert('Por favor escribe el título de la obra.'); return; }
   if (!cat) { alert('Por favor selecciona la técnica.'); return; }
   mostrarMsg('msg-obra', '⏳ Subiendo imagen...', false);
-  var obraId = Date.now();
+  var obraId = String(Date.now()); // String para evitar problemas de tipo en Firestore
   var subirFoto = function() { if (archivoReal && window.fbUploadImage) { return window.fbUploadImage(archivoReal); } return Promise.resolve(fotoObraData); };
   subirFoto().then(function(srcUrl) {
     var obra = { id: obraId, titulo: titulo, categoria: cat, desc: desc, precio: precio || 'Consultar', estado: estadoSeleccionado, src: srcUrl, orden: obraId };
@@ -1442,7 +1450,14 @@ function eliminarObra(id) {
   }
   // Firebase es la fuente de verdad — onSnapshot 'removed' confirmará en todos los dispositivos
   if (window.fbEliminarObra) {
-    window.fbEliminarObra(id).catch(function(e) { console.error('Error al borrar en Firebase:', e); });
+    window.fbEliminarObra(id).then(function() {
+      console.log('Obra borrada de Firebase OK, esperando onSnapshot...');
+    }).catch(function(e) {
+      console.error('Error al borrar en Firebase:', e);
+      alert('Error al borrar: ' + e.message + '\nRevisa la consola del navegador.');
+    });
+  } else {
+    alert('Firebase no está disponible. Recarga la página e intenta de nuevo.');
   }
   renderAdminLista();
 }
