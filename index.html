@@ -240,31 +240,49 @@ body.lang-en span[data-lang="es"] { display: none; }
   };
 
   window.fbGuardarObra = async function(obra) {
-    await setDoc(doc(db, 'obras', String(obra.id)), obra);
+    // Validar que el ID sea válido antes de guardar
+    if (!obra.id || obra.id === 'null' || obra.id === null) {
+      throw new Error('ID de obra inválido: ' + obra.id);
+    }
+    var docId = String(obra.id);
+    console.log('[Firebase] Guardando obra con docId:', docId, 'titulo:', obra.titulo);
+    await setDoc(doc(db, 'obras', docId), obra);
   };
 
   window.fbEliminarObra = async function(id) {
     var idStr = String(id);
     console.log('[Firebase] Borrando ID:', idStr);
 
-    // Método 1: SDK deleteDoc
     try {
+      // Intentar borrar por el docId directo
       const docRef = doc(db, 'obras', idStr);
-      await deleteDoc(docRef);
-      console.log('[Firebase] ✅ deleteDoc OK:', idStr);
+      const snapAntes = await getDoc(docRef);
 
-      // Verificar que realmente se borró
-      const verificacion = await getDoc(docRef);
-      if (verificacion.exists()) {
-        console.warn('[Firebase] ⚠️ El documento aún existe después de deleteDoc!');
-        // Intentar de nuevo
+      if (snapAntes.exists()) {
+        // El documento existe con ese nombre — borrar normalmente
         await deleteDoc(docRef);
-        console.log('[Firebase] 2do intento deleteDoc');
+        console.log('[Firebase] ✅ Borrado por docId:', idStr);
       } else {
-        console.log('[Firebase] ✅ Verificado: documento eliminado de Firestore');
+        // El documento NO existe con ese nombre
+        // Puede estar guardado como "null" u otro nombre incorrecto
+        // Buscar en toda la colección por el campo id
+        console.warn('[Firebase] Doc no encontrado por ID, buscando en colección...');
+        const todosSnap = await getDocs(collection(db, 'obras'));
+        var docABorrar = null;
+        todosSnap.docs.forEach(function(d) {
+          if (!docABorrar && String(d.data().id) === idStr) {
+            docABorrar = d.id;
+          }
+        });
+        if (docABorrar) {
+          await deleteDoc(doc(db, 'obras', docABorrar));
+          console.log('[Firebase] Borrado documento con nombre:', docABorrar);
+        } else {
+          throw new Error('Obra no encontrada en Firestore con id: ' + idStr);
+        }
       }
     } catch(e) {
-      console.error('[Firebase] ❌ Error deleteDoc:', e);
+      console.error('[Firebase] ❌ Error al borrar:', e);
       throw e;
     }
   };
@@ -1135,14 +1153,15 @@ function renderObra(obra) {
   var el = document.createElement('div');
   el.className = 'gallery-item reveal';
   el.dataset.cat = obra.categoria;
-  el.dataset.obraId = obra.id;
+  el.dataset.obraId = String(obra.id); // Siempre string en el DOM
   var badge = obra.estado === 'vendida'
     ? '<div style="position:absolute;top:12px;left:12px;background:rgba(240,96,96,0.9);color:#fff;font-family:Cinzel,serif;font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:2px;z-index:2">🔴 VENDIDA</div>'
     : '<div style="position:absolute;top:12px;left:12px;background:rgba(93,222,138,0.85);color:#0d0b08;font-family:Cinzel,serif;font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:2px;z-index:2">🟢 DISPONIBLE</div>';
   var adminBtnsStyle = adminActivo ? 'display:flex' : 'display:none';
+  // Botones admin - ID siempre como string del DOM
   var adminBtns = '<div class="obra-admin-btns" style="' + adminBtnsStyle + ';position:absolute;top:10px;right:10px;z-index:5;gap:6px">' +
-    '<button onclick="abrirEditarObra(' + obra.id + ')" style="background:#22c55e;border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5)" title="Editar">&#9998;</button>' +
-    '<button onclick="eliminarObraDirecto(' + obra.id + ')" style="background:#ef4444;border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5)" title="Borrar">&#128465;</button>' +
+    '<button data-id="' + String(obra.id) + '" onclick="abrirEditarObraBtn(this)" style="background:#22c55e;border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5)" title="Editar">&#9998;</button>' +
+    '<button data-id="' + String(obra.id) + '" onclick="eliminarObraBtn(this)" style="background:#ef4444;border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5)" title="Borrar">&#128465;</button>' +
     '</div>';
   var starsHtml = '';
   for (var i = 1; i <= 5; i++) {
@@ -1489,6 +1508,16 @@ function toggleEstadoObra(id) {
   if (window.fbActualizarObra) {
     window.fbActualizarObra(id, { estado: nuevoEstado }).catch(function(e) { console.error(e); });
   }
+}
+
+// Funciones que leen el ID del atributo data-id del botón — sin problemas de tipo
+function abrirEditarObraBtn(btn) {
+  var id = btn.getAttribute('data-id');
+  abrirEditarObra(id);
+}
+function eliminarObraBtn(btn) {
+  var id = btn.getAttribute('data-id');
+  eliminarObraDirecto(id);
 }
 
 function eliminarObraDirecto(id) {
