@@ -3370,25 +3370,51 @@ function eliminarCategoria(cat) {
 var editandoObraId = null;
 
 function abrirEditarObra(id) {
+  editandoObraId = id;
+
+  var abrirConObra = function(o) {
+    if (!o) { alert('No se pudo cargar la obra. Intenta de nuevo.'); return; }
+    var setVal = function(eid, val) { var el = document.getElementById(eid); if (el) el.value = val || ''; };
+    setVal('edit-titulo', o.titulo);
+    setVal('edit-desc', o.desc);
+    setVal('edit-precio', o.precio);
+    var estadoEl = document.getElementById('edit-estado'); if (estadoEl) estadoEl.value = o.estado || 'stock';
+    var cats = getCategorias();
+    var labels = { cafe: 'Café Soluble', pintura: 'Pintura al Óleo', grabado: 'Grabado', escultura: 'Escultura', dibujo: 'Dibujo' };
+    var sel = document.getElementById('edit-categoria');
+    if (sel) {
+      sel.innerHTML = cats.map(function(c) {
+        return '<option value="' + c + '"' + (c === o.categoria ? ' selected' : '') + '>' + (labels[c] || c.charAt(0).toUpperCase() + c.slice(1)) + '</option>';
+      }).join('');
+    }
+    var prev = document.getElementById('edit-preview'); if (prev) prev.src = o.src;
+    var modal = document.getElementById('modal-editar'); if (modal) modal.style.display = 'flex';
+  };
+
+  // Primero buscar en localStorage
   var obras = loadObras();
   var o = obras.find(function(x) { return x.id === id; });
-  if (!o) return;
-  editandoObraId = id;
-  var setVal = function(eid, val) { var el = document.getElementById(eid); if (el) el.value = val || ''; };
-  setVal('edit-titulo', o.titulo);
-  setVal('edit-desc', o.desc);
-  setVal('edit-precio', o.precio);
-  var estadoEl = document.getElementById('edit-estado'); if (estadoEl) estadoEl.value = o.estado || 'stock';
-  var cats = getCategorias();
-  var labels = { cafe: 'Café Soluble', pintura: 'Pintura al Óleo', grabado: 'Grabado', escultura: 'Escultura', dibujo: 'Dibujo' };
-  var sel = document.getElementById('edit-categoria');
-  if (sel) {
-    sel.innerHTML = cats.map(function(c) {
-      return '<option value="' + c + '"' + (c === o.categoria ? ' selected' : '') + '>' + (labels[c] || c.charAt(0).toUpperCase() + c.slice(1)) + '</option>';
-    }).join('');
+  if (o) { abrirConObra(o); return; }
+
+  // Si no está en localStorage, buscar en Firebase
+  if (window.fbCargarObras) {
+    window.fbCargarObras().then(function(fbObras) {
+      var oFb = fbObras.find(function(x) { return x.id === id || String(x.id) === String(id); });
+      if (oFb) {
+        // Guardar en localStorage para próxima vez
+        var obras2 = loadObras();
+        obras2.push(oFb);
+        saveObras(obras2);
+        abrirConObra(oFb);
+      } else {
+        alert('Obra no encontrada.');
+      }
+    }).catch(function() {
+      alert('Error al cargar la obra. Verifica tu conexión.');
+    });
+  } else {
+    alert('Obra no encontrada en este dispositivo.');
   }
-  var prev = document.getElementById('edit-preview'); if (prev) prev.src = o.src;
-  var modal = document.getElementById('modal-editar'); if (modal) modal.style.display = 'flex';
 }
 
 function cerrarEditarObra() {
