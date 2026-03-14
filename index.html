@@ -1156,11 +1156,16 @@ body.lang-en span[data-lang="es"] { display: none; }
         snap.docChanges().forEach(function(change) {
           var obra = change.doc.data();
           var elEx = document.querySelector('[data-obra-id="'+obra.id+'"]');
-          if (change.type === 'added' && !elEx) {
-            renderObra(obra);
-            if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
+          if (change.type === 'added') {
+            // Solo renderizar si NO está ya en el DOM (evita duplicados)
+            if (!elEx) {
+              renderObra(obra);
+              if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
+            }
           } else if (change.type === 'modified') {
-            if (elEx) elEx.remove();
+            // Siempre eliminar y volver a renderizar al editar
+            var toRemove = document.querySelectorAll('[data-obra-id="' + obra.id + '"]');
+            toRemove.forEach(function(el) { el.remove(); });
             renderObra(obra);
             if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
           } else if (change.type === 'removed' && elEx) {
@@ -3128,11 +3133,13 @@ function guardarObra() {
     // Guardar en Firebase
     var guardarEnFirebase = window.fbGuardarObra ? window.fbGuardarObra(obra) : Promise.resolve();
     guardarEnFirebase.then(function() {
-      // También guardar en localStorage como backup
+      // Guardar en localStorage como backup
       var obras = loadObras();
       obras.push(obra);
       saveObras(obras);
-      renderObra(obra);
+      // NO renderizar aquí — onSnapshot lo hace automáticamente
+      // Solo renderizar si Firebase no está disponible
+      if (!window.fbGuardarObra) { renderObra(obra); }
       actualizarEmptyState();
       renderAdminLista();
       var fields = ['obra-titulo', 'obra-desc', 'obra-precio'];
@@ -3425,12 +3432,20 @@ function guardarEdicionObra() {
   var catEl = document.getElementById('edit-categoria'); if (catEl) obras[idx].categoria = catEl.value;
   saveObras(obras);
   var obraEditada = obras[idx];
-  var el = document.querySelector('[data-obra-id="' + editandoObraId + '"]');
-  if (el) { el.remove(); renderObra(obraEditada); }
+  // Eliminar del DOM — onSnapshot se encarga de volver a renderizar
+  var toRemove = document.querySelectorAll('[data-obra-id="' + editandoObraId + '"]');
+  toRemove.forEach(function(el) { el.remove(); });
   renderAdminLista();
   cerrarEditarObra();
   if (window.fbActualizarObra) {
-    window.fbActualizarObra(editandoObraId, obraEditada).catch(function(e) { console.error(e); });
+    // Firebase onSnapshot renderizará automáticamente la obra actualizada
+    window.fbActualizarObra(editandoObraId, obraEditada).catch(function(e) {
+      // Si falla Firebase, renderizar localmente como fallback
+      renderObra(obraEditada);
+      console.error(e);
+    });
+  } else {
+    renderObra(obraEditada);
   }
 }
 
