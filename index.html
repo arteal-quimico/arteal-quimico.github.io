@@ -1907,6 +1907,43 @@ body.lang-en span[data-lang="es"] { display: none; }
 </div>
 
 
+<!-- ═══ MODAL CONFIRMACIÓN ═══ -->
+<div id="modal-confirm"
+     style="display:none;position:fixed;inset:0;z-index:6500;
+            background:rgba(13,11,8,0.95);align-items:center;justify-content:center;
+            font-family:'EB Garamond',Georgia,serif;padding:20px">
+  <div style="background:#1a1710;border:1px solid rgba(201,168,76,0.3);
+              max-width:320px;width:100%;padding:32px 28px;text-align:center">
+    <div style="font-size:42px;margin-bottom:14px">⚠️</div>
+    <p id="confirm-msg"
+       style="font-family:'Cinzel',serif;font-size:13px;color:#e8c97a;
+              letter-spacing:1px;margin-bottom:8px">¿Estás seguro?</p>
+    <p id="confirm-sub"
+       style="font-size:14px;color:#f5f0e8;opacity:0.55;margin-bottom:24px;
+              line-height:1.5"></p>
+    <div style="display:flex;gap:12px">
+      <button id="confirm-cancel"
+              style="flex:1;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;
+                     text-transform:uppercase;padding:14px;background:transparent;
+                     border:1px solid rgba(201,168,76,0.3);color:#c9a84c;
+                     cursor:pointer;border-radius:2px;transition:all 0.2s"
+              onmouseover="this.style.background='rgba(201,168,76,0.1)'"
+              onmouseout="this.style.background='transparent'">
+        Cancelar
+      </button>
+      <button id="confirm-ok"
+              style="flex:1;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;
+                     text-transform:uppercase;padding:14px;background:#ef4444;
+                     border:none;color:#fff;cursor:pointer;border-radius:2px;
+                     font-weight:700;transition:all 0.2s"
+              onmouseover="this.style.background='#dc2626'"
+              onmouseout="this.style.background='#ef4444'">
+        Sí, eliminar
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Botón flotante volver al panel (solo visible cuando panel está minimizado) -->
 <div id="btn-volver-panel"
      style="display:none;position:fixed;bottom:24px;right:24px;z-index:5000;
@@ -3200,8 +3237,11 @@ function toggleEstadoObra(id) {
 }
 
 function eliminarObraDirecto(id) {
-  if (!confirm('¿Eliminar esta obra de la galería?')) return;
-  eliminarObra(id);
+  mostrarConfirm(
+    '¿Eliminar esta obra?',
+    'Esta acción no se puede deshacer. La obra desaparecerá de todos los dispositivos.',
+    function() { eliminarObra(id); }
+  );
 }
 
 function eliminarObra(id) {
@@ -3487,6 +3527,43 @@ function toggleVerPass(inputId, btn) {
     btn.textContent = '👁️';
     btn.style.opacity = '0.6';
   }
+}
+
+// ════════════════════════════════════
+// MODAL DE CONFIRMACIÓN
+// ════════════════════════════════════
+function mostrarConfirm(titulo, subtitulo, onAceptar) {
+  var modal = document.getElementById('modal-confirm');
+  var msg = document.getElementById('confirm-msg');
+  var sub = document.getElementById('confirm-sub');
+  var btnOk = document.getElementById('confirm-ok');
+  var btnCancel = document.getElementById('confirm-cancel');
+  if (!modal) return;
+
+  if (msg) msg.textContent = titulo;
+  if (sub) sub.textContent = subtitulo || '';
+
+  // Limpiar listeners anteriores
+  var newBtnOk = btnOk.cloneNode(true);
+  var newBtnCancel = btnCancel.cloneNode(true);
+  btnOk.parentNode.replaceChild(newBtnOk, btnOk);
+  btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+
+  newBtnOk.addEventListener('click', function() {
+    modal.style.display = 'none';
+    onAceptar();
+  });
+  newBtnCancel.addEventListener('click', function() {
+    modal.style.display = 'none';
+  });
+
+  // Hover styles
+  newBtnOk.onmouseover = function() { this.style.background = '#dc2626'; };
+  newBtnOk.onmouseout = function() { this.style.background = '#ef4444'; };
+  newBtnCancel.onmouseover = function() { this.style.background = 'rgba(201,168,76,0.1)'; };
+  newBtnCancel.onmouseout = function() { this.style.background = 'transparent'; };
+
+  modal.style.display = 'flex';
 }
 
 </script>
