@@ -2603,6 +2603,10 @@ function renderObra(obra) {
     ? '<button onclick="openArtistCard()" style="display:block;width:100%;text-align:center;font-family:Cinzel,serif;font-size:10px;letter-spacing:3px;text-transform:uppercase;padding:10px;border:1px solid var(--gold);color:var(--gold);background:transparent;cursor:pointer;margin-top:12px;box-sizing:border-box;transition:all 0.3s" onmouseover="this.style.background=\'var(--gold)\';this.style.color=\'var(--ink)\'" onmouseout="this.style.background=\'transparent\';this.style.color=\'var(--gold)\'">📩 Consultar / Adquirir</button>'
     : '';
 
+  // Si admin está activo, mostrar botones inmediatamente
+  if (adminActivo) {
+    adminBtns = adminBtns.replace('display:none', 'display:flex');
+  }
   el.innerHTML = badge + adminBtns +
     '<img class="gallery-img" src="' + obra.src + '" alt="' + (obra.titulo || 'Obra') + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block;filter:sepia(10%)">' +
     '<div style="padding:16px;background:var(--ink3)">' +
@@ -2860,8 +2864,10 @@ function openAdmin() {
   if (overlay) overlay.style.display = 'block';
   adminActivo = true;
   mostrarBotonesAdmin(true);
-  // Delay para obras que llegan async de Firebase
-  setTimeout(function() { mostrarBotonesAdmin(true); }, 800);
+  // Delays múltiples para cubrir obras que llegan async de Firebase
+  setTimeout(function() { mostrarBotonesAdmin(true); }, 500);
+  setTimeout(function() { mostrarBotonesAdmin(true); }, 1500);
+  setTimeout(function() { mostrarBotonesAdmin(true); }, 3000);
   showTab('tab-obras');
   renderAdminLista();
 }
