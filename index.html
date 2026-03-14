@@ -1072,7 +1072,9 @@ body.lang-en span[data-lang="es"] { display: none; }
   };
 
   window.fbGuardarObra = async function(obra) {
-    await setDoc(doc(db, 'obras', String(obra.id)), obra);
+    // Guardar siempre con ID como string para consistencia
+    const obraConId = Object.assign({}, obra, { id: String(obra.id) });
+    await setDoc(doc(db, 'obras', String(obra.id)), obraConId);
   };
 
   window.fbEliminarObra = async function(id) {
@@ -1132,43 +1134,53 @@ body.lang-en span[data-lang="es"] { display: none; }
       // Escuchar cambios en obras en tiempo real
       window._fbRatings = await window.fbCargarRatings();
 
+      // Usar onSnapshot como ÚNICA fuente — evita duplicados
+      var primerasCarga = true;
+
       onSnapshot(collection(db, 'obras'), function(snap) {
-        // Obtener estado actual del DOM
-        const obrasDom = {};
-        document.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(el) {
-          obrasDom[el.dataset.obraId] = el;
-        });
-
-        snap.docChanges().forEach(function(change) {
-          const obra = change.doc.data();
-          const elExistente = document.querySelector('[data-obra-id="' + obra.id + '"]');
-
-          if (change.type === 'added') {
-            // Solo agregar si no existe ya en el DOM
-            if (!elExistente) {
-              renderObra(obra);
-            }
-          } else if (change.type === 'modified') {
-            // Actualizar obra existente
-            if (elExistente) {
-              elExistente.remove();
-            }
-            renderObra(obra);
-          } else if (change.type === 'removed') {
-            // Eliminar del DOM
-            if (elExistente) {
-              elExistente.style.transition = 'opacity 0.4s';
-              elExistente.style.opacity = '0';
-              setTimeout(function() {
-                if (elExistente.parentNode) elExistente.remove();
-                actualizarEmptyState();
-              }, 400);
-            }
+        if (primerasCarga) {
+          // Primera carga: limpiar grid y renderizar todo desde Firebase
+          primerasCarga = false;
+          var grid = document.getElementById('galleryGrid');
+          if (grid) {
+            // Quitar solo las obras (no el empty state)
+            document.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(el) {
+              el.remove();
+            });
           }
-        });
+          var obras = [];
+          snap.forEach(function(d) { obras.push(d.data()); });
+          obras.sort(function(a,b) { return (a.orden||a.id) - (b.orden||b.id); });
+          obras.forEach(function(o) { renderObra(o); });
+        } else {
+          // Cambios posteriores: solo procesar lo que cambió
+          snap.docChanges().forEach(function(change) {
+            var obra = change.doc.data();
+            var elExistente = document.querySelector('[data-obra-id="' + obra.id + '"]');
+
+            if (change.type === 'added') {
+              if (!elExistente) renderObra(obra);
+            } else if (change.type === 'modified') {
+              if (elExistente) elExistente.remove();
+              renderObra(obra);
+            } else if (change.type === 'removed') {
+              // Buscar por string Y number para cubrir ambos casos
+              var elBorrar = elExistente
+                || document.querySelector('[data-obra-id="' + String(obra.id) + '"]')
+                || document.querySelector('[data-obra-id="' + Number(obra.id) + '"]');
+              if (elBorrar) {
+                elBorrar.style.transition = 'opacity 0.4s';
+                elBorrar.style.opacity = '0';
+                setTimeout(function() {
+                  if (elBorrar.parentNode) elBorrar.remove();
+                  actualizarEmptyState();
+                }, 400);
+              }
+            }
+          });
+        }
 
         actualizarEmptyState();
-        // Si el admin está activo, mostrar botones en obras nuevas
         if (adminActivo) {
           setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
         }
@@ -2624,7 +2636,7 @@ function renderObra(obra) {
   var el = document.createElement('div');
   el.className = 'gallery-item reveal';
   el.dataset.cat = obra.categoria;
-  el.dataset.obraId = obra.id;
+  el.dataset.obraId = String(obra.id);
 
   var badge = obra.estado === 'vendida'
     ? '<div style="position:absolute;top:12px;left:12px;background:rgba(240,96,96,0.9);color:#fff;font-family:Cinzel,serif;font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:2px;z-index:2">🔴 VENDIDA</div>'
@@ -3205,13 +3217,18 @@ function eliminarObraDirecto(id) {
 }
 
 function eliminarObra(id) {
-  saveObras(loadObras().filter(function(o) { return o.id !== id; }));
-  var el = document.querySelector('[data-obra-id="' + id + '"]');
+  var idStr = String(id);
+  var idNum = Number(id);
+  // Eliminar de localStorage (puede ser number o string)
+  saveObras(loadObras().filter(function(o) { return String(o.id) !== idStr; }));
+  // Eliminar del DOM
+  var el = document.querySelector('[data-obra-id="' + idStr + '"]');
   if (el) el.remove();
   actualizarEmptyState();
   renderAdminLista();
+  // Eliminar de Firebase con ID como string
   if (window.fbEliminarObra) {
-    window.fbEliminarObra(id).catch(function(e) { console.error(e); });
+    window.fbEliminarObra(idStr).catch(function(e) { console.error('Firebase delete error:', e); });
   }
 }
 
