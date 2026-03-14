@@ -1125,6 +1125,13 @@ body.lang-en span[data-lang="es"] { display: none; }
       if (cfg && Object.keys(cfg).length) {
         window._fbConfig = cfg;
         aplicarConfigFirebase(cfg);
+      } else {
+        // Migrar config del localStorage a Firebase si existe
+        const cfgLocal = loadConfig ? loadConfig() : {};
+        if (cfgLocal && Object.keys(cfgLocal).length > 0) {
+          await window.fbGuardarConfig(cfgLocal);
+          aplicarConfigFirebase(cfgLocal);
+        }
       }
 
       // Escuchar cambios en config en tiempo real
@@ -1133,6 +1140,17 @@ body.lang-en span[data-lang="es"] { display: none; }
           aplicarConfigFirebase(snap.data());
         }
       });
+
+      // Migrar obras del localStorage a Firebase si Firebase está vacío
+      const obrasFirebase = await window.fbCargarObras();
+      if (obrasFirebase.length === 0) {
+        const obrasLocal = loadObras ? loadObras() : [];
+        if (obrasLocal.length > 0) {
+          for (const obra of obrasLocal) {
+            await window.fbGuardarObra(obra);
+          }
+        }
+      }
 
       // Escuchar cambios en obras en tiempo real
       window._fbRatings = await window.fbCargarRatings();
