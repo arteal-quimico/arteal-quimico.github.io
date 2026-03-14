@@ -960,7 +960,10 @@ body.lang-en span[data-lang="es"] { display: none; }
     <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <p style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:#c9a84c;opacity:0.7;text-transform:uppercase">📋 Obras publicadas</p>
-        <button onclick="abrirGestionCategorias()" style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;padding:5px 10px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);color:#c9a84c;cursor:pointer;border-radius:2px;text-transform:uppercase">🗂️ Categorías</button>
+        <div style="display:flex;gap:6px">
+          <button onclick="diagnosticarFirestore()" style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;padding:5px 10px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);color:#c9a84c;cursor:pointer;border-radius:2px;text-transform:uppercase" title="Ver estado real en Firestore">🔍 Firestore</button>
+          <button onclick="abrirGestionCategorias()" style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;padding:5px 10px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);color:#c9a84c;cursor:pointer;border-radius:2px;text-transform:uppercase">🗂️ Categorías</button>
+        </div>
       </div>
       <div id="admin-obras-lista" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
@@ -1379,20 +1382,38 @@ function guardarObra() {
   if (!cat) { alert('Por favor selecciona la técnica.'); return; }
   mostrarMsg('msg-obra', '⏳ Subiendo imagen...', false);
   var obraId = String(Date.now()); // String para evitar problemas de tipo en Firestore
-  var subirFoto = function() { if (archivoReal && window.fbUploadImage) { return window.fbUploadImage(archivoReal); } return Promise.resolve(fotoObraData); };
-  subirFoto().then(function(srcUrl) {
+  // SIEMPRE subir a Cloudinary — nunca guardar base64 en Firestore (límite 1MB)
+  if (!archivoReal || !window.fbUploadImage) {
+    mostrarMsg('msg-obra', '❌ Error: no se pudo acceder a la imagen. Intenta de nuevo.', true);
+    return;
+  }
+
+  window.fbUploadImage(archivoReal).then(function(srcUrl) {
+    if (!srcUrl || !srcUrl.startsWith('http')) {
+      mostrarMsg('msg-obra', '❌ Error al subir imagen a Cloudinary.', true);
+      return;
+    }
     var obra = { id: obraId, titulo: titulo, categoria: cat, desc: desc, precio: precio || 'Consultar', estado: estadoSeleccionado, src: srcUrl, orden: obraId };
-    var guardarEnFirebase = window.fbGuardarObra ? window.fbGuardarObra(obra) : Promise.resolve();
-    guardarEnFirebase.then(function() {
-      // ✅ PARCHE 3: NO renderizar manualmente — onSnapshot lo hará automáticamente
+    if (!window.fbGuardarObra) {
+      mostrarMsg('msg-obra', '❌ Firebase no disponible.', true);
+      return;
+    }
+    window.fbGuardarObra(obra).then(function() {
+      console.log('✅ Obra guardada en Firestore:', obra.id, obra.titulo);
       renderAdminLista();
       var fields = ['obra-titulo', 'obra-desc', 'obra-precio'];
       fields.forEach(function(f) { var el = document.getElementById(f); if (el) el.value = ''; });
       if (catSel) catSel.value = '';
       limpiarFotoObra(); selectEstado('stock');
-      mostrarMsg('msg-obra', '✅ Obra publicada! Aparecerá en la galería en un momento.');
-    }).catch(function(e) { console.error(e); mostrarMsg('msg-obra', '❌ Error al publicar. Intenta de nuevo.', true); });
-  }).catch(function(e) { console.error(e); mostrarMsg('msg-obra', '❌ Error al subir imagen.', true); });
+      mostrarMsg('msg-obra', '✅ Obra publicada correctamente!');
+    }).catch(function(e) {
+      console.error('Error guardando en Firestore:', e);
+      mostrarMsg('msg-obra', '❌ Error al guardar en Firebase: ' + e.message, true);
+    });
+  }).catch(function(e) {
+    console.error('Error Cloudinary:', e);
+    mostrarMsg('msg-obra', '❌ Error al subir imagen. Verifica tu conexión.', true);
+  });
 }
 
 function agregarFiltro(cat) {
@@ -1402,6 +1423,24 @@ function agregarFiltro(cat) {
   btn.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
   btn.onclick = function() { filterGallery(cat, this); };
   filtros.appendChild(btn);
+}
+
+// Diagnóstico: ver qué hay realmente en Firestore
+function diagnosticarFirestore() {
+  if (!window.fbCargarObras) { alert('Firebase no disponible'); return; }
+  window.fbCargarObras().then(function(obras) {
+    if (!obras.length) {
+      alert('Firestore está VACÍO — no hay obras guardadas.\n\nLas obras que ves son solo caché local del SDK de Firebase.\nEsto confirma que las obras se guardan con base64 (demasiado pesadas) y Firestore las rechaza.');
+      return;
+    }
+    var info = obras.map(function(o) {
+      var srcTipo = o.src && o.src.startsWith('data:') ? '❌ BASE64 (no guardada realmente)' : '✅ Cloudinary URL';
+      return '• ' + (o.titulo || 'Sin título') + '\n  ID: ' + o.id + '\n  Imagen: ' + srcTipo;
+    }).join('\n\n');
+    alert('📦 Obras en Firestore (' + obras.length + '):\n\n' + info);
+  }).catch(function(e) {
+    alert('Error leyendo Firestore: ' + e.message);
+  });
 }
 
 // ✅ PARCHE 3b: renderAdminLista lee del DOM (Firebase), no de localStorage
@@ -1438,7 +1477,36 @@ function toggleEstadoObra(id) {
   }
 }
 
-function eliminarObraDirecto(id) { if (!confirm('¿Eliminar esta obra de la galería?')) return; eliminarObra(id); }
+function eliminarObraDirecto(id) {
+  if (!confirm('¿Eliminar esta obra de la galería?')) return;
+
+  // TEST DIRECTO: intentar borrar y mostrar resultado claramente
+  if (!window.fbEliminarObra) {
+    alert('❌ Firebase no está cargado. Recarga la página.');
+    return;
+  }
+
+  var idStr = String(id);
+  console.log('Borrando ID:', idStr, 'tipo:', typeof id);
+
+  // Animar el elemento
+  var el = document.querySelector('[data-obra-id="' + id + '"]');
+  if (el) { el.style.opacity = '0.3'; }
+
+  window.fbEliminarObra(id)
+    .then(function() {
+      console.log('✅ Firebase confirmó borrado de:', idStr);
+      // Forzar borrado del DOM inmediatamente
+      if (el && el.parentNode) el.remove();
+      actualizarEmptyState();
+      renderAdminLista();
+    })
+    .catch(function(e) {
+      console.error('❌ Firebase rechazó borrado:', e);
+      if (el) { el.style.opacity = '1'; }
+      alert('❌ Error de Firebase: ' + e.code + '\n' + e.message);
+    });
+}
 
 // ✅ PARCHE 2: eliminarObra corregida — Firebase es la fuente de verdad
 function eliminarObra(id) {
