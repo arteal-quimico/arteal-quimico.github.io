@@ -1136,35 +1136,50 @@ body.lang-en span[data-lang="es"] { display: none; }
 
       // Luego escuchar cambios individuales (sin borrar todo)
       onSnapshot(collection(db, 'obras'), function(snap) {
-        // Primero removed/modified, luego added — evita duplicados
         var cambios = snap.docChanges();
 
+        // Primero procesar removed y modified
         cambios.forEach(function(change) {
+          // Usar el ID del documento de Firestore (siempre string)
+          var docId = change.doc.id;
           var obra = change.doc.data();
-          var el = document.querySelector('[data-obra-id="' + obra.id + '"]');
+          // Buscar por data-obra-id con el id del documento O el id de la obra
+          var el = document.querySelector('[data-obra-id="' + docId + '"]') ||
+                   document.querySelector('[data-obra-id="' + obra.id + '"]');
+
           if (change.type === 'removed') {
             if (el) {
+              el.style.transition = 'opacity 0.4s, transform 0.4s';
               el.style.opacity = '0';
-              el.style.transition = 'opacity 0.4s';
-              setTimeout(function() { if (el.parentNode) el.remove(); actualizarEmptyState(); }, 400);
+              el.style.transform = 'scale(0.9)';
+              setTimeout(function() {
+                if (el.parentNode) el.remove();
+                actualizarEmptyState();
+              }, 400);
             }
           } else if (change.type === 'modified') {
             if (el) el.remove();
             renderObra(obra);
             if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
+            actualizarEmptyState();
           }
         });
 
+        // Luego procesar added
         cambios.forEach(function(change) {
           if (change.type === 'added') {
             var obra = change.doc.data();
-            var el = document.querySelector('[data-obra-id="' + obra.id + '"]');
+            var docId = change.doc.id;
+            var el = document.querySelector('[data-obra-id="' + docId + '"]') ||
+                     document.querySelector('[data-obra-id="' + obra.id + '"]');
             if (!el) {
               renderObra(obra);
               if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
             }
           }
         });
+
+        actualizarEmptyState();
       });
 
     } catch(e) {
@@ -1917,6 +1932,54 @@ body.lang-en span[data-lang="es"] { display: none; }
     Volver al panel
   </button>
 </div>
+
+<!-- ═══ MODAL CONFIRMAR BORRAR ═══ -->
+<div id="modal-confirmar-borrar"
+     style="display:none;position:fixed;inset:0;z-index:6500;
+            background:rgba(13,11,8,0.95);align-items:center;justify-content:center;
+            font-family:'EB Garamond',Georgia,serif;padding:16px">
+  <div style="background:#1a1710;border:1px solid rgba(240,96,96,0.35);
+              max-width:360px;width:100%;padding:32px 28px;text-align:center;position:relative">
+    <input type="hidden" id="confirmar-borrar-id"/>
+    <!-- Icono advertencia -->
+    <div style="width:60px;height:60px;border-radius:50%;background:rgba(240,96,96,0.1);
+                border:1px solid rgba(240,96,96,0.3);display:flex;align-items:center;
+                justify-content:center;margin:0 auto 20px;font-size:28px">
+      🗑️
+    </div>
+    <p style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;
+              color:#f06060;opacity:0.8;margin-bottom:8px;text-transform:uppercase">
+      Confirmar eliminación</p>
+    <p style="font-size:17px;color:#f5f0e8;opacity:0.9;margin-bottom:6px;
+              font-family:'Cinzel Decorative',serif">
+      ¿Borrar esta obra?</p>
+    <p id="confirmar-titulo-obra"
+       style="font-size:15px;color:#c9a84c;margin-bottom:8px;font-style:italic"></p>
+    <p style="font-size:13px;color:#f5f0e8;opacity:0.45;margin-bottom:28px;line-height:1.6">
+      Esta acción no se puede deshacer.<br>La obra se eliminará de todos los dispositivos.</p>
+    <div style="display:flex;gap:12px">
+      <button onclick="cerrarConfirmarBorrar()"
+              style="flex:1;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;
+                     text-transform:uppercase;padding:14px;background:transparent;
+                     border:1px solid rgba(201,168,76,0.3);color:#c9a84c;
+                     cursor:pointer;border-radius:2px;transition:all 0.2s"
+              onmouseover="this.style.background='rgba(201,168,76,0.1)'"
+              onmouseout="this.style.background='transparent'">
+        Cancelar
+      </button>
+      <button onclick="confirmarBorrarObra()"
+              style="flex:1;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;
+                     text-transform:uppercase;padding:14px;background:rgba(240,96,96,0.15);
+                     border:1px solid rgba(240,96,96,0.4);color:#f06060;
+                     cursor:pointer;border-radius:2px;transition:all 0.2s;font-weight:700"
+              onmouseover="this.style.background='rgba(240,96,96,0.25)'"
+              onmouseout="this.style.background='rgba(240,96,96,0.15)'">
+        🗑️ Sí, eliminar
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="admin-trigger" onclick="showAdminLogin()" title="Acceso administrador"
      style="position:fixed;bottom:24px;left:24px;z-index:5000;width:44px;height:44px;
             border-radius:50%;background:rgba(201,168,76,0.1);
@@ -3195,8 +3258,25 @@ function toggleEstadoObra(id) {
 }
 
 function eliminarObraDirecto(id) {
-  if (!confirm('¿Eliminar esta obra de la galería?')) return;
+  // Buscar el título de la obra
+  var el = document.querySelector('[data-obra-id="' + id + '"]');
+  var titulo = el ? (el.querySelector('p') ? el.querySelector('p').textContent : 'esta obra') : 'esta obra';
+  var modal = document.getElementById('modal-confirmar-borrar');
+  var tituloEl = document.getElementById('confirmar-titulo-obra');
+  if (tituloEl) tituloEl.textContent = '"' + titulo + '"';
+  document.getElementById('confirmar-borrar-id').value = id;
+  if (modal) modal.style.display = 'flex';
+}
+
+function confirmarBorrarObra() {
+  var id = document.getElementById('confirmar-borrar-id').value;
+  cerrarConfirmarBorrar();
   eliminarObra(id);
+}
+
+function cerrarConfirmarBorrar() {
+  var modal = document.getElementById('modal-confirmar-borrar');
+  if (modal) modal.style.display = 'none';
 }
 
 function eliminarObra(id) {
