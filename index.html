@@ -1115,33 +1115,52 @@ body.lang-en span[data-lang="es"] { display: none; }
   };
 
   // ─── Inicializar con tiempo real (onSnapshot) ────────
-  window.fbInit = function() {
+  window.fbInit = async function() {
+    try {
+      // Cargar config
+      var cfg = await window.fbCargarConfig();
+      if (cfg && Object.keys(cfg).length) aplicarConfigFirebase(cfg);
 
-    // Escuchar config en tiempo real
-    onSnapshot(doc(db, 'config', 'principal'), function(snap) {
-      if (snap.exists()) aplicarConfigFirebase(snap.data());
-    }, function(err) { console.log('Config err:', err); });
+      // Escuchar config en tiempo real
+      onSnapshot(doc(db, 'config', 'principal'), function(snap) {
+        if (snap.exists()) aplicarConfigFirebase(snap.data());
+      });
 
-    // Escuchar obras en tiempo real — recarga galería completa en cada cambio
-    onSnapshot(collection(db, 'obras'), function(snap) {
-      var grid = document.getElementById('galleryGrid');
-      if (grid) {
-        grid.querySelectorAll('.gallery-item').forEach(function(el) { el.remove(); });
-      }
-      var obras = [];
-      snap.forEach(function(d) { obras.push(d.data()); });
+      // Cargar obras UNA SOLA VEZ al inicio
+      var obras = await window.fbCargarObras();
+      window._fbRatings = await window.fbCargarRatings();
       obras.sort(function(a,b) { return (a.orden||a.id) - (b.orden||b.id); });
       obras.forEach(function(o) { renderObra(o); });
       actualizarEmptyState();
-      if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
-    }, function(err) {
-      console.log('Obras Firebase err, usando localStorage:', err);
+
+      // Luego escuchar cambios individuales (sin borrar todo)
+      onSnapshot(collection(db, 'obras'), function(snap) {
+        snap.docChanges().forEach(function(change) {
+          var obra = change.doc.data();
+          var el = document.querySelector('[data-obra-id="' + obra.id + '"]');
+          if (change.type === 'added' && !el) {
+            renderObra(obra);
+            actualizarEmptyState();
+            if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
+          } else if (change.type === 'modified' && el) {
+            el.remove();
+            renderObra(obra);
+            if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
+          } else if (change.type === 'removed' && el) {
+            el.style.opacity = '0';
+            el.style.transition = 'opacity 0.4s';
+            setTimeout(function() { if (el.parentNode) el.remove(); actualizarEmptyState(); }, 400);
+          }
+        });
+      });
+
+    } catch(e) {
+      console.log('Firebase offline:', e);
       loadObras().forEach(function(o) { renderObra(o); });
       actualizarEmptyState();
-    });
+    }
   };
 
-    // Llamar init cuando el DOM esté listo
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { window.fbInit(); });
   } else {
