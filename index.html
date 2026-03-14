@@ -1076,7 +1076,12 @@ body.lang-en span[data-lang="es"] { display: none; }
   };
 
   window.fbEliminarObra = async function(id) {
-    await deleteDoc(doc(db, 'obras', String(id)));
+    // Borrar por el ID del documento (que guardamos como String del id)
+    try {
+      await deleteDoc(doc(db, 'obras', String(id)));
+    } catch(e) {
+      console.error('Error eliminando obra:', e);
+    }
   };
 
   window.fbActualizarObra = async function(id, datos) {
@@ -1133,34 +1138,32 @@ body.lang-en span[data-lang="es"] { display: none; }
       window._fbRatings = await window.fbCargarRatings();
 
       onSnapshot(collection(db, 'obras'), function(snap) {
-        // Obtener estado actual del DOM
-        const obrasDom = {};
-        document.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(el) {
-          obrasDom[el.dataset.obraId] = el;
-        });
 
         snap.docChanges().forEach(function(change) {
+          // El docId es el ID del documento en Firestore (siempre string)
+          const docId = change.doc.id;
           const obra = change.doc.data();
-          const elExistente = document.querySelector('[data-obra-id="' + obra.id + '"]');
+          // Buscar en el DOM por docId O por obra.id (por si acaso son distintos)
+          var elExistente = document.querySelector('[data-obra-id="' + docId + '"]')
+                         || document.querySelector('[data-obra-id="' + obra.id + '"]');
 
           if (change.type === 'added') {
-            // Solo agregar si no existe ya en el DOM
             if (!elExistente) {
               renderObra(obra);
             }
           } else if (change.type === 'modified') {
-            // Actualizar obra existente
-            if (elExistente) {
-              elExistente.remove();
-            }
+            if (elExistente) elExistente.remove();
             renderObra(obra);
           } else if (change.type === 'removed') {
-            // Eliminar del DOM
-            if (elExistente) {
-              elExistente.style.transition = 'opacity 0.4s';
-              elExistente.style.opacity = '0';
+            // Buscar de todas las formas posibles
+            var elBorrar = document.querySelector('[data-obra-id="' + docId + '"]')
+                        || document.querySelector('[data-obra-id="' + obra.id + '"]');
+            if (elBorrar) {
+              elBorrar.style.transition = 'opacity 0.4s, transform 0.4s';
+              elBorrar.style.opacity = '0';
+              elBorrar.style.transform = 'scale(0.95)';
               setTimeout(function() {
-                if (elExistente.parentNode) elExistente.remove();
+                if (elBorrar.parentNode) elBorrar.remove();
                 actualizarEmptyState();
               }, 400);
             }
@@ -1168,9 +1171,8 @@ body.lang-en span[data-lang="es"] { display: none; }
         });
 
         actualizarEmptyState();
-        // Si el admin está activo, mostrar botones en obras nuevas
         if (adminActivo) {
-          setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
+          setTimeout(function() { mostrarBotonesAdmin(true); }, 200);
         }
       });
 
