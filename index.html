@@ -1137,54 +1137,40 @@ body.lang-en span[data-lang="es"] { display: none; }
       // Usar onSnapshot como ÚNICA fuente — evita duplicados
       var primerasCarga = true;
 
+      var _primeraVez = true;
+
       onSnapshot(collection(db, 'obras'), function(snap) {
-        if (primerasCarga) {
-          // Primera carga: limpiar grid y renderizar todo desde Firebase
-          primerasCarga = false;
-          var grid = document.getElementById('galleryGrid');
-          if (grid) {
-            // Quitar solo las obras (no el empty state)
-            document.querySelectorAll('.gallery-item[data-obra-id]').forEach(function(el) {
-              el.remove();
-            });
+        if (_primeraVez) {
+          _primeraVez = false;
+          // Limpiar DOM completamente antes de cargar
+          document.querySelectorAll('.gallery-item').forEach(function(el) { el.remove(); });
+          var todas = [];
+          snap.forEach(function(d) { todas.push(d.data()); });
+          todas.sort(function(a,b) { return (a.orden||a.id)-(b.orden||b.id); });
+          todas.forEach(function(o) { renderObra(o); });
+          actualizarEmptyState();
+          if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 300);
+          return;
+        }
+        // Solo cambios posteriores
+        snap.docChanges().forEach(function(change) {
+          var obra = change.doc.data();
+          var elEx = document.querySelector('[data-obra-id="'+obra.id+'"]');
+          if (change.type === 'added' && !elEx) {
+            renderObra(obra);
+            if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
+          } else if (change.type === 'modified') {
+            if (elEx) elEx.remove();
+            renderObra(obra);
+            if (adminActivo) setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
+          } else if (change.type === 'removed' && elEx) {
+            elEx.style.transition = 'opacity 0.4s';
+            elEx.style.opacity = '0';
+            setTimeout(function() { if (elEx.parentNode) elEx.remove(); actualizarEmptyState(); }, 400);
           }
-          var obras = [];
-          snap.forEach(function(d) { obras.push(d.data()); });
-          obras.sort(function(a,b) { return (a.orden||a.id) - (b.orden||b.id); });
-          obras.forEach(function(o) { renderObra(o); });
-        } else {
-          // Cambios posteriores: solo procesar lo que cambió
-          snap.docChanges().forEach(function(change) {
-            var obra = change.doc.data();
-            var elExistente = document.querySelector('[data-obra-id="' + obra.id + '"]');
-
-            if (change.type === 'added') {
-              if (!elExistente) renderObra(obra);
-            } else if (change.type === 'modified') {
-              if (elExistente) elExistente.remove();
-              renderObra(obra);
-            } else if (change.type === 'removed') {
-              // Buscar por string Y number para cubrir ambos casos
-              var elBorrar = elExistente
-                || document.querySelector('[data-obra-id="' + String(obra.id) + '"]')
-                || document.querySelector('[data-obra-id="' + Number(obra.id) + '"]');
-              if (elBorrar) {
-                elBorrar.style.transition = 'opacity 0.4s';
-                elBorrar.style.opacity = '0';
-                setTimeout(function() {
-                  if (elBorrar.parentNode) elBorrar.remove();
-                  actualizarEmptyState();
-                }, 400);
-              }
-            }
-          });
-        }
-
+        });
         actualizarEmptyState();
-        if (adminActivo) {
-          setTimeout(function() { mostrarBotonesAdmin(true); }, 100);
-        }
-      });
+      });;
 
     } catch(e) {
       console.log('Firebase offline, usando localStorage:', e);
@@ -2618,9 +2604,10 @@ function aplicarConfigFirebase(cfg) {
 
 (function initConfig() {
   // Firebase se inicializa por separado via fbInit()
-  // Aquí solo aplicamos localStorage como fallback inmediato
+  // Solo aplicar config de localStorage como carga rápida inicial
   var cfg = loadConfig();
-  aplicarConfigFirebase(cfg);
+  if (cfg && Object.keys(cfg).length) aplicarConfigFirebase(cfg);
+  // NO renderizar obras aquí — Firebase lo hace con onSnapshot
 })();
 
 // ════════════════════════════════════
